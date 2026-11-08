@@ -28,7 +28,7 @@ jobs:
         with:
           dotnet-version: "10.0.x"
       - name: Restaurar pacotes
-        run: dotnet restore tests/Nbt.Smoke -v n
+        run: dotnet restore tests/Nbt.Smoke -v diag > restore.log 2>&1 || (grep -iE "exception|error|nuget.config|NU1|warn" restore.log | grep -v "^ *$" | tail -60; exit 1)
       - name: Teste de ponta a ponta
         run: dotnet run -c Release --no-restore --project tests/Nbt.Smoke -- 64
 
