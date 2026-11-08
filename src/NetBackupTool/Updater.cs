@@ -16,7 +16,9 @@ public sealed record ReleaseInfo(Version Version, string Tag, string HtmlUrl, st
 public static class Updater
 {
     public const string ProjectUrl = "https://github.com/leddzeppellin/network-backup-tool";
-    private const string LatestApi = "https://api.github.com/repos/leddzeppellin/network-backup-tool/releases/latest";
+    // NBT_UPDATE_API permite apontar para um servidor de teste (usado para testar a troca do .exe).
+    private static readonly string LatestApi = Environment.GetEnvironmentVariable("NBT_UPDATE_API")
+        ?? "https://api.github.com/repos/leddzeppellin/network-backup-tool/releases/latest";
     private const string AssetName = "NetBackupTool.exe";
 
     private static readonly HttpClient Http = CreateClient();
@@ -90,32 +92,84 @@ public static class Updater
         }
     }
 
+    public const string FinishArg = "--concluir-atualizacao";
+
     /// <summary>
-    /// Troca o .exe em uso pelo novo (o Windows permite renomear um executável aberto) e
-    /// inicia a nova versão; quem chama encerra o programa logo em seguida.
+    /// Inicia o .exe novo para concluir a troca; quem chama encerra o programa logo em seguida.
+    /// O .exe em uso não pode ser renomeado: o .NET de arquivo único ainda carrega partes dele
+    /// sob demanda, e o programa quebraria ao fechar.
     /// </summary>
-    public static void Replace(string newFile)
+    public static void StartFinish(string newFile, bool receiving)
     {
-        var exe = Environment.ProcessPath!;
-        var old = exe + ".old";
-        try { File.Delete(old); } catch { }
-        File.Move(exe, old);
+        var psi = new ProcessStartInfo(newFile) { UseShellExecute = false };
+        psi.ArgumentList.Add(FinishArg);
+        psi.ArgumentList.Add(Environment.ProcessPath!);
+        psi.ArgumentList.Add(Environment.ProcessId.ToString());
+        if (receiving) psi.ArgumentList.Add("receber");
+        Process.Start(psi);
+    }
+
+    /// <summary>
+    /// Executado pelo .exe novo: espera o antigo fechar, copia-se por cima dele e abre a nova versão
+    /// no caminho original. O ".new" é apagado pela versão já instalada (CleanupOld).
+    /// </summary>
+    public static void Finish(string target, int oldPid, string[] extraArgs)
+    {
         try
         {
-            File.Move(newFile, exe);
+            using (var old = TryGetProcess(oldPid)) old?.WaitForExit(30_000);
+            Exception? last = null;
+            for (int i = 0; i < 20; i++)
+            {
+                try
+                {
+                    File.Copy(Environment.ProcessPath!, target, overwrite: true);
+                    last = null;
+                    break;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    last = ex;
+                    Thread.Sleep(500); // antivírus ou o processo antigo ainda soltando o arquivo
+                }
+            }
+            if (last != null) throw last;
+
+            var psi = new ProcessStartInfo(target) { UseShellExecute = false };
+            psi.ArgumentList.Add("--reiniciar");
+            foreach (var a in extraArgs) psi.ArgumentList.Add(a);
+            Process.Start(psi);
         }
-        catch
+        catch (Exception ex)
         {
-            File.Move(old, exe); // volta como estava
-            throw;
+            if (MessageBox.Show(L.T("upd.cantReplace", ex.Message), L.T("upd.title"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                OpenUrl(ProjectUrl + "/releases/latest");
         }
     }
 
-    /// <summary>Apaga o .exe antigo deixado pela última atualização.</summary>
+    private static Process? TryGetProcess(int pid)
+    {
+        try { return Process.GetProcessById(pid); } catch (ArgumentException) { return null; }
+    }
+
+    /// <summary>Apaga o .exe temporário da última atualização (e o ".old" de versões anteriores).</summary>
     public static void CleanupOld()
     {
-        try { File.Delete(Environment.ProcessPath + ".old"); } catch { }
-        try { File.Delete(Environment.ProcessPath + ".new"); } catch { }
+        var exe = Environment.ProcessPath!;
+        Task.Run(async () =>
+        {
+            // O ".new" pode ainda estar terminando de fechar logo após a atualização.
+            for (int i = 0; i < 10; i++)
+            {
+                try
+                {
+                    if (File.Exists(exe + ".new")) File.Delete(exe + ".new");
+                    if (File.Exists(exe + ".old")) File.Delete(exe + ".old");
+                    return;
+                }
+                catch { await Task.Delay(1000); }
+            }
+        });
     }
 
     public static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

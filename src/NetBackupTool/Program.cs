@@ -9,7 +9,14 @@ static class Program
     {
         ApplicationConfiguration.Initialize();
         L.Set(Settings.Load().Language);
-        Updater.CleanupOld();
+
+        // Segunda metade da atualização: este processo é o .exe novo (".new"), que substitui o antigo.
+        if (args.Length >= 3 && args[0] == Updater.FinishArg)
+        {
+            Updater.Finish(args[1], int.Parse(args[2]), args.Skip(3).ToArray());
+            return;
+        }
+
         var handoff = Handoff.FromArgs(args);
         bool Has(string a) => args.Any(x => x.Trim('-', '/').Equals(a, StringComparison.OrdinalIgnoreCase));
 
@@ -38,6 +45,8 @@ static class Program
             showSignal?.Set();
             return;
         }
+
+        Updater.CleanupOld();
 
         // "receber" abre direto na recepção; "--bandeja" inicia escondido (usado ao iniciar com o Windows).
         Application.Run(new MainForm(Has("receber"), handoff, Has("bandeja"), showSignal));

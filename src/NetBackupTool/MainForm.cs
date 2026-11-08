@@ -807,7 +807,6 @@ public sealed class MainForm : Form
             UseWaitCursor = true;
             var progress = new Progress<int>(p => Text = L.T("upd.downloading", latest.Version.ToString(3), p));
             await Updater.DownloadAsync(latest, newFile, progress, CancellationToken.None);
-            Updater.Replace(newFile);
         }
         catch (InvalidDataException ex)
         {
@@ -826,7 +825,20 @@ public sealed class MainForm : Form
             UseWaitCursor = false;
             Text = oldTitle;
         }
-        Restart();
+        try
+        {
+            Updater.StartFinish(newFile, _receiver != null);
+        }
+        catch (Exception ex)
+        {
+            if (MessageBox.Show(this, L.T("upd.cantReplace", ex.Message), title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                Updater.OpenUrl(latest.HtmlUrl);
+            return;
+        }
+        _receiver?.Stop();
+        _receiver = null;
+        _exiting = true;
+        Close();
     }
 
     private void Warn(string msg) => MessageBox.Show(this, msg, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
