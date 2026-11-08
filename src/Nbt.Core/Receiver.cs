@@ -76,6 +76,7 @@ public sealed class Receiver : IDisposable
             _discovery = new UdpClient();
             _discovery.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _discovery.Client.Bind(new IPEndPoint(IPAddress.Any, Protocol.DiscoveryPort));
+            Discovery.IgnoreConnReset(_discovery.Client);
             _ = DiscoveryLoop(_cts.Token);
         }
         catch (Exception ex)

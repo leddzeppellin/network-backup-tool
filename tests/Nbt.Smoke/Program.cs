@@ -2,6 +2,14 @@
 using System.Security.Cryptography;
 using Nbt.Core;
 
+// Uso manual: Nbt.Smoke find  — só a descoberta, como no botão "Procurar na rede".
+if (args.Length == 1 && args[0] == "find")
+{
+    foreach (var r in await Discovery.FindAsync(TimeSpan.FromSeconds(1.5))) Console.WriteLine(r);
+    Console.WriteLine("fim");
+    return 0;
+}
+
 // Uso manual: Nbt.Smoke send <host> <código> <pasta>  — envia para um receptor já aberto (ex.: o app).
 if (args.Length == 4 && args[0] == "send")
 {
