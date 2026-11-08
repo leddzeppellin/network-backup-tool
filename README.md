@@ -43,8 +43,13 @@ Atalho útil no seu PC: `NetBackupTool.exe receber` abre já recebendo.
 - **Retomada**: enviar de novo pula o que já chegou igual (mesmo tamanho e data). Se cair a rede
   ou cancelar, basta enviar de novo.
 - Lê arquivos abertos por outros programas quando o Windows permite (compartilhamento de leitura).
-  Arquivos bloqueados de forma exclusiva (ex.: `.pst` com Outlook aberto) aparecem como falha —
-  feche o programa e envie de novo, que só o que faltou é copiado.
+- **Arquivos em uso com exclusividade** (`.pst` com Outlook aberto, bancos de dados): rodando como
+  administrador, o programa cria uma **Shadow Copy (VSS)** do disco só quando encontra o primeiro
+  arquivo assim, lê esses arquivos dela (um retrato consistente daquele instante) e apaga a Shadow
+  Copy ao terminar. Se o programa for fechado à força, a próxima execução como admin apaga a sobra.
+  Sem admin, esses arquivos aparecem como falha com a dica; na aba Enviar há o link
+  **Reabrir como administrador**, que mantém a lista de pastas e as "Pastas do usuário" do usuário
+  original, mesmo que no UAC você entre com outra conta.
 - Pula junções do sistema ("Dados de Aplicativos", "Meus Documentos" antigos) e arquivos do
   OneDrive que só existem na nuvem (avisa a quantidade).
 - O tráfego **não é criptografado** (pensado para rede local de confiança; criptografia custaria velocidade).
@@ -68,8 +73,11 @@ código errado, arquivo bloqueado, exclusões, retomada e caminhos maliciosos):
 dotnet run -c Release --project tests/Nbt.Smoke
 ```
 
+Rodado num terminal **como administrador**, o mesmo teste confere que o arquivo bloqueado chega
+íntegro via Shadow Copy e que a Shadow Copy é apagada no fim.
+
 ## Estrutura
 
-- `src/Nbt.Core` — protocolo, varredura (`Manifest`), `Sender`, `Receiver`, `Discovery`.
+- `src/Nbt.Core` — protocolo, varredura (`Manifest`), `Sender`, `Receiver`, `Discovery`, `ShadowCopies` (VSS).
 - `src/NetBackupTool` — interface WinForms.
 - `tests/Nbt.Smoke` — teste de ponta a ponta.

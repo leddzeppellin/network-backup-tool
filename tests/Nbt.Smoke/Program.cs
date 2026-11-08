@@ -68,8 +68,13 @@ async Task<(TransferResult, TransferStats, double)> Run()
 Console.WriteLine("Primeira cópia:");
 var (r1, s1, t1) = await Run();
 Console.WriteLine($"  {Format.Bytes(s1.BytesDone)} em {t1:0.0}s = {Format.Speed(s1.BytesDone / t1)}");
-Check(r1.FilesOk == 2003, $"arquivos ok = {r1.FilesOk}");
-Check(r1.FilesFailed == 1 && r1.Errors.Any(e => e.Contains("bloqueado.dat")), "arquivo bloqueado reportado como falha");
+bool admin = ShadowCopies.IsElevated;
+Console.WriteLine(admin ? "  (administrador: arquivo bloqueado deve vir da Shadow Copy)" : "  (sem admin: arquivo bloqueado deve falhar)");
+Check(r1.FilesOk == (admin ? 2004 : 2003), $"arquivos ok = {r1.FilesOk}");
+if (admin)
+    Check(r1.FilesFailed == 0, "arquivo bloqueado copiado via Shadow Copy");
+else
+    Check(r1.FilesFailed == 1 && r1.Errors.Any(e => e.Contains("bloqueado.dat") && e.Contains("administrador")), "arquivo bloqueado reportado com a dica de admin");
 
 var mirror = Path.Combine(dst, "PC-CLIENTE", Manifest.MapToRelative(src));
 bool same = Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories)
@@ -83,13 +88,16 @@ bool same = Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories)
 Check(same, "conteúdo e data idênticos");
 Check(Directory.Exists(Path.Combine(mirror, "sub", "fundo", "vazia")), "pasta vazia criada");
 Check(!File.Exists(Path.Combine(mirror, "lixo.tmp")), "*.tmp excluído");
-Check(!File.Exists(Path.Combine(mirror, "bloqueado.dat")), "sem arquivo parcial do bloqueado");
+if (admin)
+    Check(File.ReadAllText(Path.Combine(mirror, "bloqueado.dat")) == "segredo", "conteúdo do bloqueado correto");
+else
+    Check(!File.Exists(Path.Combine(mirror, "bloqueado.dat")), "sem arquivo parcial do bloqueado");
 Check(Directory.EnumerateFiles(Path.Combine(dst, "PC-CLIENTE"), "_NBT_relatorio_*").Any(), "relatório gravado");
 
 Console.WriteLine("Segunda cópia (deve pular):");
 locker.Dispose();
 var (r2, s2, _) = await Run();
-Check(s2.SkippedFiles == 2003 && r2.FilesOk == 1, $"pulados = {s2.SkippedFiles}, copiados = {r2.FilesOk}");
+Check(s2.SkippedFiles == (admin ? 2004 : 2003) && r2.FilesOk == (admin ? 0 : 1), $"pulados = {s2.SkippedFiles}, copiados = {r2.FilesOk}");
 
 Console.WriteLine("Caminho malicioso:");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"..\..\Windows\x.dll")), "'..' recusado");
@@ -97,6 +105,11 @@ Check(Throws(() => Manifest.ResolveSafe(dst, @"C:\Windows\x.dll")) || !Manifest.
 
 receiver.Stop();
 try { Directory.Delete(root, true); } catch { }
+if (admin)
+{
+    var ledger = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NetBackupTool", "shadows.txt");
+    Check(!File.Exists(ledger) || File.ReadAllText(ledger).Trim().Length == 0, "Shadow Copy apagada ao fim");
+}
 Console.WriteLine(failures == 0 ? "TUDO OK" : $"{failures} FALHA(S)");
 return failures == 0 ? 0 : 1;
 

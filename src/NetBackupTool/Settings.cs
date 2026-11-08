@@ -30,3 +30,35 @@ public sealed class Settings
         catch { /* configurações são conveniência; não atrapalhar a cópia */ }
     }
 }
+
+/// <summary>Estado passado para a instância reaberta como administrador.</summary>
+public sealed class Handoff
+{
+    public const string Arg = "--continuar";
+
+    public List<string> Sources { get; set; } = new();
+    public List<string> UserFolders { get; set; } = new();
+    public string Excludes { get; set; } = "";
+    public int Connections { get; set; } = 4;
+    public string Target { get; set; } = "";
+
+    public string Write()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"nbt_continuar_{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(this));
+        return path;
+    }
+
+    public static Handoff? FromArgs(string[] args)
+    {
+        int i = Array.IndexOf(args, Arg);
+        if (i < 0 || i + 1 >= args.Length) return null;
+        try
+        {
+            var h = JsonSerializer.Deserialize<Handoff>(File.ReadAllText(args[i + 1]));
+            File.Delete(args[i + 1]);
+            return h;
+        }
+        catch { return null; }
+    }
+}

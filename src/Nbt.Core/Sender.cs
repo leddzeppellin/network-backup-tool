@@ -24,6 +24,8 @@ public sealed class Sender
     public string SenderName { get; init; } = Environment.MachineName;
     public int Connections { get; init; } = 4;
     public Action<string> Log { get; init; } = _ => { };
+    /// <summary>Ler arquivos bloqueados por outros programas a partir de uma Shadow Copy (exige admin).</summary>
+    public bool UseShadowCopy { get; init; } = true;
 
     public async Task<TransferResult> SendAsync(ScanResult scan, TransferStats stats, CancellationToken ct)
     {
@@ -98,10 +100,12 @@ public sealed class Sender
             Log($"{stats.SkippedFiles:N0} arquivos já estão no destino e serão pulados ({Format.Bytes(stats.SkippedBytes)}).");
         Log($"Transferindo {needFiles:N0} arquivos ({Format.Bytes(needBytes)}) por {Connections} conexões.");
 
+        // Criada só se algum arquivo estiver bloqueado; apagada ao fim do envio.
+        using var shadows = UseShadowCopy ? new ShadowCopies(Log) : null;
         int next = 0;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var workers = Enumerable.Range(0, Math.Max(1, Connections))
-            .Select(_ => Task.Run(() => DataWorker(token, entries, states, chunks, () => Interlocked.Increment(ref next) - 1, stats, linked.Token), linked.Token))
+            .Select(_ => Task.Run(() => DataWorker(token, entries, states, chunks, shadows, () => Interlocked.Increment(ref next) - 1, stats, linked.Token), linked.Token))
             .ToArray();
         try
         {
@@ -124,7 +128,7 @@ public sealed class Sender
         return new TransferResult(ok, failed, errors);
     }
 
-    private async Task DataWorker(byte[] token, List<FileEntry> entries, FileSendState?[] states, List<Chunk> chunks,
+    private async Task DataWorker(byte[] token, List<FileEntry> entries, FileSendState?[] states, List<Chunk> chunks, ShadowCopies? shadows,
         Func<int> take, TransferStats stats, CancellationToken ct)
     {
         using var client = new TcpClient(AddressFamily.InterNetworkV6);
@@ -159,15 +163,28 @@ public sealed class Sender
                 {
                     try
                     {
-                        // FileShare.ReadWrite|Delete: consegue ler arquivos que outros programas mantêm abertos.
-                        st.Handle = File.OpenHandle(entry.SourcePath!, FileMode.Open, FileAccess.Read,
-                            FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan);
                         stats.CurrentFile = entry.SourcePath!;
+                        st.Handle = OpenSource(entry.SourcePath!);
+                    }
+                    catch (Exception ex) when (ShadowCopies.IsLockError(ex) && shadows?.Resolve(entry.SourcePath!) is { } shadowPath)
+                    {
+                        try
+                        {
+                            st.Handle = OpenSource(shadowPath);
+                            Log($"Em uso, copiado da Shadow Copy: {entry.SourcePath}");
+                        }
+                        catch (Exception ex2)
+                        {
+                            st.Failed = true;
+                            abortReason = ex2.Message;
+                        }
                     }
                     catch (Exception ex)
                     {
                         st.Failed = true;
-                        abortReason = ex.Message;
+                        abortReason = ShadowCopies.IsLockError(ex)
+                            ? ex.Message + " Feche o programa que usa o arquivo, ou abra o Network Backup Tool como administrador para usar Shadow Copy."
+                            : ex.Message;
                     }
                 }
                 if (st.Failed && !st.AbortSent)
@@ -240,4 +257,8 @@ public sealed class Sender
         // O receptor só responde depois de gravar tudo o que chegou por esta conexão.
         if (r.ReadByte() != Protocol.StatusOk) throw new TransferException("Receptor não confirmou o fim dos dados.");
     }
+
+    // FileShare.ReadWrite|Delete: consegue ler arquivos que outros programas mantêm abertos sem exclusividade.
+    private static SafeFileHandle OpenSource(string path) =>
+        File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan);
 }

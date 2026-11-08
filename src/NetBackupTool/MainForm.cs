@@ -35,9 +35,11 @@ public sealed class MainForm : Form
     private Receiver? _receiver;
     private readonly SpeedMeter _recvSpeed = new();
 
-    public MainForm(bool startReceiving)
+    private List<string>? _userFolders;
+
+    public MainForm(bool startReceiving, Handoff? handoff = null)
     {
-        Text = "Network Backup Tool";
+        Text = ShadowCopies.IsElevated ? "Network Backup Tool (Administrador)" : "Network Backup Tool";
         Font = new Font("Segoe UI", 9.5f);
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(860, 640);
@@ -53,6 +55,16 @@ public sealed class MainForm : Form
         _excludes.Text = _settings.Excludes;
         _target.Text = _settings.LastHost;
         _dest.Text = _settings.DestinationRoot;
+        if (handoff != null)
+        {
+            // Reaberto como administrador: mantém a lista e as pastas do usuário original
+            // (no UAC o técnico pode ter entrado com outra conta, de outro perfil).
+            foreach (var p in handoff.Sources) AddSource(p);
+            _userFolders = handoff.UserFolders;
+            _excludes.Text = handoff.Excludes;
+            _connections.Value = Math.Clamp(handoff.Connections, 1, 16);
+            _target.Text = handoff.Target;
+        }
 
         _timer.Tick += (_, _) => RefreshProgress();
         _timer.Start();
@@ -134,6 +146,20 @@ public sealed class MainForm : Form
         codeRow.Controls.Add(_connections);
         whereGrid.Controls.Add(new Label { Text = "Código do receptor:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
         whereGrid.Controls.Add(codeRow, 1, 1);
+        var vss = new LinkLabel { AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 0) };
+        if (ShadowCopies.IsElevated)
+        {
+            vss.Text = "✔ Administrador: arquivos em uso (Outlook, bancos de dados) serão lidos via Shadow Copy.";
+            vss.LinkArea = new LinkArea(0, 0);
+        }
+        else
+        {
+            vss.Text = "Arquivos em uso (Outlook aberto, bancos de dados) só são copiados como administrador.  Reabrir como administrador";
+            vss.LinkArea = new LinkArea(vss.Text.IndexOf("Reabrir"), "Reabrir como administrador".Length);
+            vss.LinkClicked += (_, _) => RestartElevated();
+        }
+        whereGrid.Controls.Add(vss, 0, 2);
+        whereGrid.SetColumnSpan(vss, 3);
         where.Controls.Add(whereGrid);
         _code.KeyPress += (_, e) => e.Handled = !char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar);
 
@@ -156,6 +182,38 @@ public sealed class MainForm : Form
         return page;
     }
 
+    private void RestartElevated()
+    {
+        if (_sendCts != null || _receiver?.ActiveSessions.Count > 0)
+        {
+            Warn("Espere a cópia em andamento terminar.");
+            return;
+        }
+        var file = new Handoff
+        {
+            Sources = _sources.Items.Cast<string>().ToList(),
+            UserFolders = _userFolders ?? CurrentUserFolders(),
+            Excludes = _excludes.Text,
+            Connections = (int)_connections.Value,
+            Target = _target.Text,
+        }.Write();
+        try
+        {
+            var psi = new ProcessStartInfo(Environment.ProcessPath!) { Verb = "runas", UseShellExecute = true };
+            psi.ArgumentList.Add(Handoff.Arg);
+            psi.ArgumentList.Add(file);
+            Process.Start(psi);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            File.Delete(file);
+            return; // UAC recusado
+        }
+        _receiver?.Stop();
+        _receiver = null;
+        Application.Exit();
+    }
+
     private static Button NewButton(string text, EventHandler onClick)
     {
         var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(150, 0), Margin = new Padding(4, 2, 0, 2) };
@@ -170,18 +228,20 @@ public sealed class MainForm : Form
 
     private void AddUserFolders()
     {
+        foreach (var p in _userFolders ?? CurrentUserFolders())
+            if (Directory.Exists(p)) AddSource(p);
+    }
+
+    private static List<string> CurrentUserFolders()
+    {
         Environment.SpecialFolder[] folders =
         [
             Environment.SpecialFolder.Desktop, Environment.SpecialFolder.MyDocuments, Environment.SpecialFolder.MyPictures,
             Environment.SpecialFolder.MyMusic, Environment.SpecialFolder.MyVideos, Environment.SpecialFolder.Favorites,
         ];
-        foreach (var f in folders)
-        {
-            var p = Environment.GetFolderPath(f);
-            if (Directory.Exists(p)) AddSource(p);
-        }
-        var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        if (Directory.Exists(downloads)) AddSource(downloads);
+        var list = folders.Select(Environment.GetFolderPath).Where(p => p.Length > 0).ToList();
+        list.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"));
+        return list;
     }
 
     private void AddFolder()
