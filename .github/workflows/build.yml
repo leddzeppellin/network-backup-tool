@@ -14,9 +14,8 @@ permissions:
   contents: write
 
 env:
-  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
-  # Pasta de pacotes do próprio projeto: o cache pré-instalado do runner Linux faz a restauração falhar sem erro.
-  NUGET_PACKAGES: ${{ github.workspace }}/.nuget-packages
+  # Não usar o nome VERSION: o MSBuild lê variáveis de ambiente como propriedades (Version).
+  NBT_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
 
 jobs:
   test:
@@ -29,10 +28,8 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
-      - name: Restaurar pacotes
-        run: dotnet restore tests/Nbt.Smoke -v n || (for f in src/Nbt.Core/obj/project.assets.json tests/Nbt.Smoke/obj/project.assets.json; do python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sys.argv[1], json.dumps(d.get('logs'), indent=1)); print(list(d.get('libraries',{}).keys()))" $f; done; exit 1)
       - name: Teste de ponta a ponta
-        run: dotnet run -c Release --no-restore --project tests/Nbt.Smoke -- 64
+        run: dotnet run -c Release --project tests/Nbt.Smoke -- 64
 
   windows:
     needs: test
@@ -46,7 +43,7 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Publicar
         shell: pwsh
-        run: dotnet publish src/NetBackupTool.App -c Release -r win-x64 -o out -p:Version=$("$env:VERSION".TrimStart('v'))
+        run: dotnet publish src/NetBackupTool.App -c Release -r win-x64 -o out -p:Version=$("$env:NBT_VERSION".TrimStart('v'))
       - name: Enviar artefato
         id: upload
         uses: actions/upload-artifact@v7
@@ -85,7 +82,7 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Publicar x64 e arm64
         run: |
-          v="${VERSION#v}"
+          v="${NBT_VERSION#v}"
           for arch in x64 arm64; do
             dotnet publish src/NetBackupTool.App -c Release -r linux-$arch -o out/$arch -p:Version=$v
             mv out/$arch/NetBackupTool out/NetBackupTool-linux-$arch
@@ -106,7 +103,7 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Montar os pacotes .app
         run: |
-          v="${VERSION#v}"
+          v="${NBT_VERSION#v}"
           mkdir -p out
           bash tools/make-macos-app.sh osx-arm64 "$v" out/NetBackupTool-macos-arm64.zip
           bash tools/make-macos-app.sh osx-x64 "$v" out/NetBackupTool-macos-x64.zip
