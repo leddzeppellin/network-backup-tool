@@ -15,6 +15,8 @@ permissions:
 
 env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
+  # Pasta de pacotes do próprio projeto: o cache pré-instalado do runner Linux faz a restauração falhar sem erro.
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget-packages
 
 jobs:
   test:
@@ -28,7 +30,7 @@ jobs:
         with:
           dotnet-version: "10.0.x"
       - name: Restaurar pacotes
-        run: dotnet restore tests/Nbt.Smoke -v diag > restore.log 2>&1 || (sed -n "/Task \"RestoreTask\"/,/Done executing task \"RestoreTask\"/p" restore.log | grep -vE "Task Parameter|^ *$" | tail -80; exit 1)
+        run: dotnet restore tests/Nbt.Smoke -p:NuGetAudit=false -v n
       - name: Teste de ponta a ponta
         run: dotnet run -c Release --no-restore --project tests/Nbt.Smoke -- 64
 
