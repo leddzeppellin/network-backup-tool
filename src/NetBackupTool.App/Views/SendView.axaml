@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.SendView">
+  <ScrollViewer>
+    <StackPanel Margin="32,28" Spacing="16" MaxWidth="900">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h1" Text="{l:T nav.send}" />
+        <TextBlock Classes="muted" Text="{l:T send.subtitle}" />
+      </StackPanel>
+
+      <!-- O que copiar -->
+      <Border x:Name="WhatCard" Classes="card" DragDrop.AllowDrop="True">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{l:T send.whatTitle}" />
+          <Border x:Name="DropHint" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{DynamicResource ChipBg}">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="{DynamicResource MutedText}" />
+              <TextBlock Classes="muted" Text="{l:T send.dropHint}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <ItemsControl x:Name="SourceList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Border BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,0,0,1" Padding="4,6">
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Classes="icon" Tag="{Binding}" Click="RemoveSource_Click">
+                      <PathIcon Data="{StaticResource IconClose}" Width="12" Height="12" />
+                    </Button>
+                    <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" Foreground="{DynamicResource AccentText}" Margin="0,0,10,0" />
+                    <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                  </DockPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <WrapPanel>
+            <Button x:Name="UserFoldersButton" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <PathIcon Data="{StaticResource IconUser}" Width="14" Height="14" />
+                <TextBlock Text="{l:T send.userFolders}" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="AddFolderButton" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <PathIcon Data="{StaticResource IconFolder}" Width="14" Height="14" />
+                <TextBlock Text="{l:T send.addFolder}" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="AddFilesButton">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <PathIcon Data="{StaticResource IconFile}" Width="14" Height="14" />
+                <TextBlock Text="{l:T send.addFiles}" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Para onde -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{l:T send.whereTitle}" />
+          <TextBlock x:Name="DiscoveryText" Classes="caption" Text="{l:T send.lookingShort}" />
+          <WrapPanel x:Name="Receivers" />
+          <TextBox x:Name="HostBox" Watermark="{l:T send.typeHost}" MaxWidth="360" HorizontalAlignment="Left" Width="360" />
+          <TextBlock Classes="caption" Text="{l:T send.codeTitle}" Margin="0,6,0,0" />
+          <l:CodeBox x:Name="Code" />
+          <DockPanel x:Name="AdminHint" Margin="0,6,0,0" IsVisible="False">
+            <PathIcon DockPanel.Dock="Left" Data="{StaticResource IconShield}" Width="14" Height="14" Foreground="{DynamicResource MutedText}" VerticalAlignment="Top" Margin="0,2,8,0" />
+            <StackPanel Spacing="2">
+              <TextBlock x:Name="AdminText" Classes="caption" TextWrapping="Wrap" />
+              <HyperlinkButton x:Name="ReopenAdmin" Content="{l:T send.reopenAdmin}" Padding="0" FontSize="12" />
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Ação e progresso -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <DockPanel>
+            <Button x:Name="SendButton" DockPanel.Dock="Left" Classes="accent big" Content="{l:T send.send}" Margin="0,0,20,0" VerticalAlignment="Center" />
+            <StackPanel Spacing="6" VerticalAlignment="Center">
+              <TextBlock x:Name="StatusText" Classes="muted" Text="{l:T send.ready}" TextWrapping="Wrap" />
+              <ProgressBar x:Name="Progress" Maximum="1000" />
+              <TextBlock x:Name="CurrentFile" Classes="caption" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DockPanel>
+          <Expander Header="{l:T send.details}" HorizontalAlignment="Stretch">
+            <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" Height="220"
+                     FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" FontSize="12" />
+          </Expander>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

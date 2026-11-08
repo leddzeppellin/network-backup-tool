@@ -1,5 +1,5 @@
 using System.Management;
-using System.Security.Principal;
+using System.Runtime.Versioning;
 
 namespace Nbt.Core;
 
@@ -19,20 +19,15 @@ public sealed class ShadowCopies : IDisposable
     private static readonly string LedgerPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NetBackupTool", "shadows.txt");
 
+    [SupportedOSPlatform("windows")]
     public ShadowCopies(Action<string> log)
     {
         _log = log;
         CleanupLeftovers();
     }
 
-    public static bool IsElevated
-    {
-        get
-        {
-            using var id = WindowsIdentity.GetCurrent();
-            return new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator);
-        }
-    }
+    /// <summary>Administrador no Windows; root no Linux/macOS.</summary>
+    public static bool IsElevated => Environment.IsPrivilegedProcess;
 
     /// <summary>ERROR_SHARING_VIOLATION (32) ou ERROR_LOCK_VIOLATION (33).</summary>
     public static bool IsLockError(Exception ex) => ex is IOException && (ex.HResult & 0xFFFF) is 32 or 33;
@@ -41,6 +36,7 @@ public sealed class ShadowCopies : IDisposable
     /// Caminho equivalente dentro da cópia de sombra, criando-a na primeira vez para o volume.
     /// Devolve null se não for possível (sem admin, disco de rede, VSS indisponível).
     /// </summary>
+    [SupportedOSPlatform("windows")]
     public string? Resolve(string fullPath)
     {
         var root = Path.GetPathRoot(fullPath);
@@ -59,6 +55,7 @@ public sealed class ShadowCopies : IDisposable
         return device == null ? null : device + "\\" + fullPath[root.Length..];
     }
 
+    [SupportedOSPlatform("windows")]
     private string? Create(string volume)
     {
         if (!IsElevated)
@@ -102,12 +99,14 @@ public sealed class ShadowCopies : IDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     public void Dispose()
     {
         foreach (var id in _ids) Delete(id);
         _ids.Clear();
     }
 
+    [SupportedOSPlatform("windows")]
     private void Delete(string id)
     {
         try
@@ -123,6 +122,7 @@ public sealed class ShadowCopies : IDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private void CleanupLeftovers()
     {
         if (!IsElevated || !File.Exists(LedgerPath)) return;

@@ -47,6 +47,8 @@ img.save(out / "icon.png")
 sizes = [256, 128, 64, 48, 32, 24, 16]
 frames = [img.resize((s, s), Image.LANCZOS) for s in sizes]
 frames[0].save(out / "icon.ico", sizes=[(s, s) for s in sizes], append_images=frames[1:])
+# macOS: .icns (o pacote .app usa este)
+img.resize((1024, 1024), Image.LANCZOS).save(out / "icon.icns", sizes=[(16, 16), (32, 32), (64, 64), (128, 128), (256, 256), (512, 512), (1024, 1024)])
 for s in (256, 48, 16):
     frames[sizes.index(s)].save(out / f"preview_{s}.png")
 print("ok")

@@ -1,8 +1,8 @@
 name: Build
 
-# Em todo push/PR: compila e roda o teste de ponta a ponta.
-# Em tag v* (ex.: v1.1.0): também publica o .exe, assina (quando a SignPath estiver configurada)
-# e cria a release no GitHub.
+# Em todo push/PR: teste de ponta a ponta no Windows e no Linux e build para os três sistemas.
+# Em tag v* (ex.: v2.0.0): assina o .exe (quando a SignPath estiver configurada) e cria a release
+# com Windows, Linux e macOS.
 on:
   push:
     branches: [main]
@@ -13,34 +13,42 @@ on:
 permissions:
   contents: write
 
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0' }}
+
 jobs:
-  build:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - name: Teste de ponta a ponta
+        run: dotnet run -c Release --project tests/Nbt.Smoke -- 64
+
+  windows:
+    needs: test
     runs-on: windows-latest
     env:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
-
-      - name: Teste de ponta a ponta
-        run: dotnet run -c Release --project tests/Nbt.Smoke -- 64
-
-      - name: Publicar executável
+      - name: Publicar
         shell: pwsh
-        run: |
-          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.0-dev" }
-          dotnet publish src/NetBackupTool -c Release -o publish -p:Version=$version -p:DebugType=none
-
+        run: dotnet publish src/NetBackupTool.App -c Release -r win-x64 -o out -p:Version=$("$env:VERSION".TrimStart('v'))
       - name: Enviar artefato
         id: upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: NetBackupTool
-          path: publish/NetBackupTool.exe
-
+          name: windows
+          path: out/NetBackupTool.exe
       # Assinatura pela SignPath Foundation (gratuita para open source).
       # Fica inativa até existir o segredo SIGNPATH_API_TOKEN e as variáveis SIGNPATH_* no repositório.
       - name: Assinar com SignPath
@@ -55,12 +63,67 @@ jobs:
           github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: signed
+      - name: Usar o .exe assinado
+        if: hashFiles('signed/NetBackupTool.exe') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: signed/NetBackupTool.exe
+          overwrite: true
 
+  linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - name: Publicar x64 e arm64
+        run: |
+          v="${VERSION#v}"
+          for arch in x64 arm64; do
+            dotnet publish src/NetBackupTool.App -c Release -r linux-$arch -o out/$arch -p:Version=$v
+            mv out/$arch/NetBackupTool out/NetBackupTool-linux-$arch
+            chmod +x out/NetBackupTool-linux-$arch
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: out/NetBackupTool-linux-*
+
+  macos:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - name: Montar os pacotes .app
+        run: |
+          v="${VERSION#v}"
+          mkdir -p out
+          bash tools/make-macos-app.sh osx-arm64 "$v" out/NetBackupTool-macos-arm64.zip
+          bash tools/make-macos-app.sh osx-x64 "$v" out/NetBackupTool-macos-x64.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: out/*.zip
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
       - name: Criar release
-        if: github.ref_type == 'tag'
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $exe = if (Test-Path signed/NetBackupTool.exe) { "signed/NetBackupTool.exe" } else { "publish/NetBackupTool.exe" }
-          gh release create "${{ github.ref_name }}" $exe --title "Network Backup Tool ${{ github.ref_name }}" --generate-notes
+          ls -la dist
+          gh release create "${{ github.ref_name }}" dist/* --title "Network Backup Tool ${{ github.ref_name }}" --generate-notes

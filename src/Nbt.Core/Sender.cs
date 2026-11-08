@@ -101,7 +101,7 @@ public sealed class Sender
         Log(L.T("send.transferring", needFiles, Format.Bytes(needBytes), Connections));
 
         // Criada só se algum arquivo estiver bloqueado; apagada ao fim do envio.
-        using var shadows = UseShadowCopy ? new ShadowCopies(Log) : null;
+        using var shadows = UseShadowCopy && OperatingSystem.IsWindows() ? new ShadowCopies(Log) : null;
         int next = 0;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var workers = Enumerable.Range(0, Math.Max(1, Connections))
@@ -166,7 +166,7 @@ public sealed class Sender
                         stats.CurrentFile = entry.SourcePath!;
                         st.Handle = OpenSource(entry.SourcePath!);
                     }
-                    catch (Exception ex) when (ShadowCopies.IsLockError(ex) && shadows?.Resolve(entry.SourcePath!) is { } shadowPath)
+                    catch (Exception ex) when (ShadowCopies.IsLockError(ex) && OperatingSystem.IsWindows() && shadows?.Resolve(entry.SourcePath!) is { } shadowPath)
                     {
                         try
                         {

@@ -17,12 +17,23 @@ public static class L
     public static void Set(string? code) =>
         Lang = string.IsNullOrEmpty(code) || code == "auto" || !Languages.Contains(code) ? Detect() : code;
 
-    public static string Detect() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch
+    public static string Detect()
     {
-        "pt" => "pt",
-        "es" => "es",
-        _ => "en",
-    };
+        var name = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        // Modo invariante (Linux sem ICU): o idioma vem das variáveis do sistema, ex.: LANG=pt_BR.UTF-8.
+        if (name == "iv" || name.Length == 0)
+        {
+            var env = new[] { "LC_ALL", "LC_MESSAGES", "LANG" }
+                .Select(Environment.GetEnvironmentVariable).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? "";
+            name = env.Length >= 2 ? env[..2].ToLowerInvariant() : "en";
+        }
+        return name switch
+        {
+            "pt" => "pt",
+            "es" => "es",
+            _ => "en",
+        };
+    }
 
     public static string T(string key, params object?[] args)
     {
@@ -208,9 +219,9 @@ public static class L
         ["recv.portError"] = ("Não consegui abrir a porta {0}: {1}\n\nOutro Network Backup Tool já está recebendo neste PC?",
                               "Could not open port {0}: {1}\n\nIs another Network Backup Tool already receiving on this PC?",
                               "No se pudo abrir el puerto {0}: {1}\n\n¿Hay otro Network Backup Tool recibiendo en este PC?"),
-        ["recv.waiting"] = ("Aguardando na porta {0}. No PC do cliente: aba Enviar → \"Procurar na rede\" → digite o código.",
-                            "Waiting on port {0}. On the client PC: Send tab → \"Search network\" → type the code.",
-                            "Esperando en el puerto {0}. En el PC del cliente: pestaña Enviar → \"Buscar en la red\" → escribe el código."),
+        ["recv.waiting"] = ("Aguardando na porta {0}. No PC do cliente: Enviar → escolha este computador → digite o código.",
+                            "Waiting on port {0}. On the client PC: Send → pick this computer → type the code.",
+                            "Esperando en el puerto {0}. En el PC del cliente: Enviar → elige este equipo → escribe el código."),
         ["recv.fwCreated"] = ("Regra de firewall criada.", "Firewall rule created.", "Regla de firewall creada."),
         ["recv.fwNotConfirmed"] = ("O netsh não confirmou a regra de firewall.", "netsh did not confirm the firewall rule.", "netsh no confirmó la regla de firewall."),
         ["recv.fwCanceled"] = ("Liberação do firewall cancelada.", "Firewall change canceled.", "Cambio en el firewall cancelado."),
@@ -235,43 +246,88 @@ public static class L
         ["howto.title"] = ("Como usar", "How to use", "Cómo usar"),
         ["howto.text"] = (
             "No seu PC (quem recebe):\n" +
-            "  1. Aba Receber → Iniciar recepção.\n" +
+            "  1. Receber → Iniciar recepção.\n" +
             "  2. Na primeira vez, permita o acesso no aviso do firewall.\n" +
             "  3. Anote o código de 6 dígitos.\n\n" +
             "No PC do cliente (quem envia):\n" +
-            "  1. Abra o mesmo programa, aba Enviar.\n" +
-            "  2. Adicione o que copiar (Pastas do usuário, pastas ou arquivos).\n" +
-            "  3. Procurar na rede (ou digite o IP), digite o código e clique em Enviar.\n\n" +
+            "  1. Abra o mesmo programa, em Enviar.\n" +
+            "  2. Adicione o que copiar (Pastas do usuário, pastas ou arquivos, ou arraste para a janela).\n" +
+            "  3. Clique no seu computador, que aparece sozinho na lista (ou digite o IP), digite o código e clique em Enviar.\n\n" +
             "Os arquivos chegam na pasta de destino, numa subpasta com o nome do PC do cliente, junto com um relatório.\n" +
             "Se a cópia for interrompida, envie de novo: o que já chegou igual é pulado.\n" +
-            "Arquivos em uso (Outlook aberto, etc.) só são copiados com o programa aberto como administrador.",
+            "No Windows, arquivos em uso (Outlook aberto, etc.) só são copiados com o programa aberto como administrador.",
             "On your PC (receiving):\n" +
-            "  1. Receive tab → Start receiving.\n" +
+            "  1. Receive → Start receiving.\n" +
             "  2. The first time, allow access in the firewall prompt.\n" +
             "  3. Note the 6-digit code.\n\n" +
             "On the client PC (sending):\n" +
-            "  1. Open the same program, Send tab.\n" +
-            "  2. Add what to copy (User folders, folders or files).\n" +
-            "  3. Search network (or type the IP), type the code and click Send.\n\n" +
+            "  1. Open the same program, in Send.\n" +
+            "  2. Add what to copy (User folders, folders or files, or drag them onto the window).\n" +
+            "  3. Click your computer, which shows up in the list by itself (or type its IP), type the code and click Send.\n\n" +
             "Files arrive in the destination folder, in a subfolder named after the client PC, together with a report.\n" +
             "If the copy is interrupted, just send again: files already identical are skipped.\n" +
-            "Files in use (open Outlook, etc.) are only copied when the program runs as administrator.",
+            "On Windows, files in use (open Outlook, etc.) are only copied when the program runs as administrator.",
             "En tu PC (el que recibe):\n" +
-            "  1. Pestaña Recibir → Iniciar recepción.\n" +
+            "  1. Recibir → Iniciar recepción.\n" +
             "  2. La primera vez, permite el acceso en el aviso del firewall.\n" +
             "  3. Anota el código de 6 dígitos.\n\n" +
             "En el PC del cliente (el que envía):\n" +
-            "  1. Abre el mismo programa, pestaña Enviar.\n" +
-            "  2. Agrega qué copiar (Carpetas del usuario, carpetas o archivos).\n" +
-            "  3. Buscar en la red (o escribe la IP), escribe el código y haz clic en Enviar.\n\n" +
+            "  1. Abre el mismo programa, en Enviar.\n" +
+            "  2. Agrega qué copiar (Carpetas del usuario, carpetas o archivos, o arrástralos a la ventana).\n" +
+            "  3. Haz clic en tu equipo, que aparece solo en la lista (o escribe la IP), escribe el código y haz clic en Enviar.\n\n" +
             "Los archivos llegan a la carpeta de destino, en una subcarpeta con el nombre del PC del cliente, junto con un informe.\n" +
             "Si la copia se interrumpe, envía de nuevo: lo que ya llegó igual se omite.\n" +
-            "Los archivos en uso (Outlook abierto, etc.) solo se copian con el programa abierto como administrador."),
+            "En Windows, los archivos en uso (Outlook abierto, etc.) solo se copian con el programa abierto como administrador."),
 
         ["about.text"] = ("Versão {0}\n\nCopia arquivos entre computadores da rede local, sem compartilhamento do Windows.\n\n© 2026 Ricardo Valério da Silva\nLicença MIT — código aberto",
                           "Version {0}\n\nCopies files between computers on the local network, without Windows file sharing.\n\n© 2026 Ricardo Valério da Silva\nMIT License — open source",
                           "Versión {0}\n\nCopia archivos entre equipos de la red local, sin el uso compartido de Windows.\n\n© 2026 Ricardo Valério da Silva\nLicencia MIT — código abierto"),
         ["about.ok"] = ("Fechar", "Close", "Cerrar"),
+
+        // ---------------------------------------------------------------- interface 2.0
+        ["nav.send"] = ("Enviar", "Send", "Enviar"),
+        ["nav.receive"] = ("Receber", "Receive", "Recibir"),
+        ["nav.settings"] = ("Configurações", "Settings", "Configuración"),
+        ["nav.about"] = ("Sobre", "About", "Acerca de"),
+        ["send.subtitle"] = ("Use no PC do cliente para mandar os arquivos.", "Use on the client PC to send the files.", "Úsalo en el PC del cliente para enviar los archivos."),
+        ["recv.subtitle"] = ("Use no seu PC para receber os arquivos.", "Use on your PC to receive the files.", "Úsalo en tu PC para recibir los archivos."),
+        ["send.whatTitle"] = ("O que copiar", "What to copy", "Qué copiar"),
+        ["send.dropHint"] = ("Arraste pastas e arquivos para cá", "Drag folders and files here", "Arrastra carpetas y archivos aquí"),
+        ["send.whereTitle"] = ("Para onde", "Where to", "A dónde"),
+        ["send.foundLabel"] = ("Encontrados na rede", "Found on the network", "Encontrados en la red"),
+        ["send.lookingShort"] = ("Procurando computadores recebendo...", "Looking for receiving computers...", "Buscando equipos que estén recibiendo..."),
+        ["send.noneYet"] = ("Nenhum encontrado ainda. Inicie a recepção no outro PC ou digite o IP.", "None found yet. Start receiving on the other PC or type its IP.", "Ninguno encontrado aún. Inicia la recepción en el otro PC o escribe la IP."),
+        ["send.typeHost"] = ("Ou digite o nome ou IP", "Or type the name or IP", "O escribe el nombre o la IP"),
+        ["send.codeTitle"] = ("Código do receptor", "Receiver code", "Código del receptor"),
+        ["send.details"] = ("Detalhes", "Details", "Detalles"),
+        ["send.ready"] = ("Pronto para enviar.", "Ready to send.", "Listo para enviar."),
+        ["recv.codeFor"] = ("Código para o cliente", "Code for the client", "Código para el cliente"),
+        ["recv.on"] = ("Recebendo", "Receiving", "Recibiendo"),
+        ["recv.off"] = ("Parado", "Stopped", "Detenido"),
+        ["recv.sessionsTitle"] = ("Cópias em andamento", "Copies in progress", "Copias en curso"),
+        ["recv.noSessions"] = ("Nenhuma cópia no momento.", "No copies right now.", "Ninguna copia en este momento."),
+        ["recv.chkAutostartAny"] = ("Iniciar com o sistema, já recebendo", "Start with the system, already receiving", "Iniciar con el sistema, ya recibiendo"),
+        ["set.appearance"] = ("Aparência", "Appearance", "Apariencia"),
+        ["set.language"] = ("Idioma", "Language", "Idioma"),
+        ["set.theme"] = ("Tema", "Theme", "Tema"),
+        ["set.themeSystem"] = ("Seguir o sistema", "Follow the system", "Seguir el sistema"),
+        ["set.themeLight"] = ("Claro", "Light", "Claro"),
+        ["set.themeDark"] = ("Escuro", "Dark", "Oscuro"),
+        ["set.persistentTitle"] = ("Modo persistente", "Persistent mode", "Modo persistente"),
+        ["set.persistentHint"] = ("Deixa este computador sempre pronto para receber.", "Keeps this computer always ready to receive.", "Deja este equipo siempre listo para recibir."),
+        ["set.sendingTitle"] = ("Envio", "Sending", "Envío"),
+        ["set.connections"] = ("Conexões paralelas", "Parallel connections", "Conexiones paralelas"),
+        ["set.connectionsHint"] = ("Mais conexões ajudam com muitos arquivos pequenos.", "More connections help with many small files.", "Más conexiones ayudan con muchos archivos pequeños."),
+        ["set.ignore"] = ("Ignorar arquivos (separados por ;)", "Ignore files (separated by ;)", "Ignorar archivos (separados por ;)"),
+        ["about.desc"] = ("Copia arquivos entre computadores da rede local, sem compartilhamento do sistema.", "Copies files between computers on the local network, without system file sharing.", "Copia archivos entre equipos de la red local, sin el uso compartido del sistema."),
+        ["about.version"] = ("Versão {0}", "Version {0}", "Versión {0}"),
+        ["about.license"] = ("© 2026 Ricardo Valério da Silva · Licença MIT", "© 2026 Ricardo Valério da Silva · MIT License", "© 2026 Ricardo Valério da Silva · Licencia MIT"),
+        ["dest.default"] = ("Backups de clientes", "Client backups", "Copias de clientes"),
+        ["upd.openPage"] = ("Abrir a página de download?", "Open the download page?", "¿Abrir la página de descarga?"),
+        ["upd.manual"] = ("Versão {0} disponível (você tem a {1}). Neste sistema a atualização é feita baixando o novo pacote.", "Version {0} is available (you have {1}). On this system, update by downloading the new package.", "La versión {0} está disponible (tienes la {1}). En este sistema se actualiza descargando el paquete nuevo."),
+        ["dlg.yes"] = ("Sim", "Yes", "Sí"),
+        ["dlg.no"] = ("Não", "No", "No"),
+        ["dlg.ok"] = ("OK", "OK", "Aceptar"),
 
         // ---------------------------------------------------------------- atualização
         ["upd.checking"] = ("Verificando atualizações...", "Checking for updates...", "Buscando actualizaciones..."),

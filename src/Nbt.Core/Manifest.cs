@@ -168,8 +168,9 @@ public static class Manifest
             clean.Add(fixedPart);
         }
         var full = Path.GetFullPath(Path.Combine(baseDir, Path.Combine(clean.ToArray())));
-        var root = Path.GetFullPath(baseDir).TrimEnd('\\') + "\\";
-        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        var root = Path.GetFullPath(baseDir).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!full.StartsWith(root, comparison))
             throw new InvalidDataException(L.T("man.outside", relative));
         return full;
     }

@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Nbt.Core/Nbt.Core.csproj" />
-    <Project Path="src/NetBackupTool/NetBackupTool.csproj" />
+    <Project Path="src/NetBackupTool.App/NetBackupTool.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nbt.Smoke/Nbt.Smoke.csproj" />

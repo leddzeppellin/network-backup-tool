@@ -64,7 +64,37 @@ public static class Discovery
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
 
-        return found.Values.OrderBy(r => r.Name).ToList();
+        // O mesmo computador pode responder por várias placas (virtuais inclusive): fica um por nome,
+        // de preferência o endereço que está na mesma rede de uma placa real deste PC.
+        var real = LocalIPv4().Where(a => !IsVirtual(InterfaceOf(a))).ToList();
+        bool SameLan(string address) => IPAddress.TryParse(address, out var ip) && real.Any(a => SameSubnet(ip, a));
+        return found.Values
+            .GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.OrderByDescending(r => SameLan(r.Address)).First())
+            .OrderBy(r => r.Name)
+            .ToList();
+    }
+
+    private static readonly string[] VirtualNames =
+        ["vEthernet", "WSL", "Hyper-V", "docker", "br-", "veth", "virbr", "vmnet", "VirtualBox", "Loopback"];
+
+    /// <summary>Adaptadores virtuais (Hyper-V, WSL, Docker, VMs) que não levam à rede local de verdade.</summary>
+    public static bool IsVirtual(string interfaceName) =>
+        VirtualNames.Any(v => interfaceName.Contains(v, StringComparison.OrdinalIgnoreCase));
+
+    private static string InterfaceOf(UnicastIPAddressInformation addr) =>
+        NetworkInterface.GetAllNetworkInterfaces()
+            .FirstOrDefault(n => n.GetIPProperties().UnicastAddresses.Any(u => u.Address.Equals(addr.Address)))?.Name ?? "";
+
+    private static bool SameSubnet(IPAddress ip, UnicastIPAddressInformation local)
+    {
+        var a = ip.GetAddressBytes();
+        var b = local.Address.GetAddressBytes();
+        var m = local.IPv4Mask.GetAddressBytes();
+        if (a.Length != 4 || b.Length != 4) return false;
+        for (int i = 0; i < 4; i++)
+            if ((a[i] & m[i]) != (b[i] & m[i])) return false;
+        return true;
     }
 
     public static IEnumerable<UnicastIPAddressInformation> LocalIPv4() =>
@@ -78,7 +108,13 @@ public static class Discovery
             .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
             .SelectMany(n => n.GetIPProperties().UnicastAddresses
                 .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
-                .Select(a => (n.Name, a.Address.ToString(), n.Speed)));
+                .Select(a => (n.Name, a.Address.ToString(), SpeedOf(n))));
+
+    // No macOS a velocidade da placa não é informada (lança PlatformNotSupportedException).
+    private static long SpeedOf(NetworkInterface n)
+    {
+        try { return n.Speed; } catch { return -1; }
+    }
 
     /// <summary>
     /// No Windows, um "porta inalcançável" (ICMP) recebido por causa de um envio anterior faz o

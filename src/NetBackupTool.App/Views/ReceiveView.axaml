@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.ReceiveView">
+  <ScrollViewer>
+    <StackPanel Margin="32,28" Spacing="16" MaxWidth="900">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h1" Text="{l:T nav.receive}" />
+        <TextBlock Classes="muted" Text="{l:T recv.subtitle}" />
+      </StackPanel>
+
+      <!-- Código e estado -->
+      <Border Classes="card" Padding="22,20">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Spacing="10" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Border x:Name="StatePill" Classes="pill" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Ellipse x:Name="StateDot" Classes="dot" Width="8" Height="8" VerticalAlignment="Center" />
+                <TextBlock x:Name="StateText" FontSize="12" FontWeight="SemiBold" Text="{l:T recv.off}" />
+              </StackPanel>
+            </Border>
+            <Button x:Name="StartStopButton" Classes="accent big" Content="{l:T recv.start}" HorizontalAlignment="Right" />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+              <Button x:Name="NewCodeButton" Content="{l:T recv.newCode}" />
+              <Button x:Name="FirewallButton" Content="{l:T recv.firewall}" IsVisible="False" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Classes="caption" Text="{l:T recv.codeFor}" />
+            <TextBlock x:Name="CodeText" Classes="code" FontSize="46" FontWeight="SemiBold" LetterSpacing="6" Foreground="{DynamicResource AccentText}" Text="--- ---" />
+            <TextBlock x:Name="MachineText" Classes="caption" TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Cópias em andamento -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{l:T recv.sessionsTitle}" />
+          <TextBlock x:Name="NoSessions" Classes="muted" Text="{l:T recv.noSessions}" />
+          <StackPanel x:Name="Sessions" Spacing="14" />
+        </StackPanel>
+      </Border>
+
+      <!-- Destino -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{l:T recv.saveIn}" />
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+              <Button x:Name="ChooseButton" Content="{l:T recv.choose}" />
+              <Button x:Name="OpenButton" Content="{l:T recv.openFolder}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <PathIcon Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="{DynamicResource AccentText}" />
+              <TextBlock x:Name="DestText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <Expander Header="{l:T send.details}" HorizontalAlignment="Stretch">
+        <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" Height="220"
+                 FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" FontSize="12" />
+      </Expander>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

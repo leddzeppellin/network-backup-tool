@@ -1,0 +1,56 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:NetBackupTool"
+        x:Class="NetBackupTool.MainWindow"
+        Title="Network Backup Tool"
+        Width="1000" Height="720" MinWidth="820" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/icon.ico"
+        Background="{DynamicResource PageBg}">
+  <Grid ColumnDefinitions="210,*">
+    <Border Background="{DynamicResource SideBg}">
+      <DockPanel Margin="12,16">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="8,0,0,24">
+          <Image Source="/Assets/icon.png" Width="30" Height="30" />
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="Network" FontWeight="SemiBold" FontSize="13" />
+            <TextBlock Text="Backup Tool" FontWeight="SemiBold" FontSize="13" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Spacing="2">
+          <Button x:Name="NavSettings" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconSettings}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.settings}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavAbout" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconInfo}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.about}" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel Spacing="2">
+          <Button x:Name="NavSend" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconUpload}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.send}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavReceive" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconDownload}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.receive}" />
+              <Ellipse x:Name="ReceivingDot" Width="8" Height="8" Fill="#2EAD5B" IsVisible="False" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <ContentControl x:Name="Host" Grid.Column="1" />
+  </Grid>
+</Window>

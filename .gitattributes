@@ -2,3 +2,4 @@
 *.cs text eol=crlf
 *.ico binary
 *.png binary
+*.sh text eol=lf

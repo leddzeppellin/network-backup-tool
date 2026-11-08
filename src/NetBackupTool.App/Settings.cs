@@ -3,19 +3,21 @@ using Nbt.Core;
 
 namespace NetBackupTool;
 
+/// <summary>Configurações do usuário (mesmo arquivo e formato da versão 1.x).</summary>
 public sealed class Settings
 {
-    public string DestinationRoot { get; set; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Backups de clientes");
+    public string DestinationRoot { get; set; } = Platform.DefaultDestination();
     public int Connections { get; set; } = 4;
     public string Excludes { get; set; } = Manifest.DefaultExcludes;
     public string LastHost { get; set; } = "";
     /// <summary>Fechar a janela deixa o programa recebendo, com ícone perto do relógio.</summary>
     public bool KeepInTray { get; set; }
-    /// <summary>"auto" segue o idioma do Windows; ou "pt", "en", "es".</summary>
-    public string Language { get; set; } = "auto";
     /// <summary>Código que não muda entre usos; vazio = código novo a cada início.</summary>
     public string FixedCode { get; set; } = "";
+    /// <summary>"auto" segue o idioma do sistema; ou "pt", "en", "es".</summary>
+    public string Language { get; set; } = "auto";
+    /// <summary>"system", "light" ou "dark".</summary>
+    public string Theme { get; set; } = "system";
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool", "settings.json");
@@ -37,7 +39,7 @@ public sealed class Settings
     }
 }
 
-/// <summary>Estado passado para a instância reaberta como administrador.</summary>
+/// <summary>Estado passado para a instância reaberta como administrador (Windows).</summary>
 public sealed class Handoff
 {
     public const string Arg = "--continuar";

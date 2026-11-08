@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.SettingsView">
+  <ScrollViewer>
+    <StackPanel Margin="32,28" Spacing="16" MaxWidth="760">
+      <TextBlock Classes="h1" Text="{l:T nav.settings}" />
+
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="h2" Text="{l:T set.appearance}" />
+          <DockPanel>
+            <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="280" />
+            <TextBlock Text="{l:T set.language}" VerticalAlignment="Center" />
+          </DockPanel>
+          <DockPanel>
+            <ComboBox x:Name="ThemeBox" DockPanel.Dock="Right" Width="280" />
+            <TextBlock Text="{l:T set.theme}" VerticalAlignment="Center" />
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h2" Text="{l:T set.persistentTitle}" />
+          <TextBlock Classes="caption" Text="{l:T set.persistentHint}" />
+          <DockPanel Margin="0,6,0,0">
+            <ToggleSwitch x:Name="TraySwitch" DockPanel.Dock="Right" OnContent="" OffContent="" />
+            <TextBlock Text="{l:T recv.chkTray}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </DockPanel>
+          <DockPanel>
+            <ToggleSwitch x:Name="AutostartSwitch" DockPanel.Dock="Right" OnContent="" OffContent="" />
+            <TextBlock Text="{l:T recv.chkAutostartAny}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </DockPanel>
+          <DockPanel>
+            <ToggleSwitch x:Name="FixedSwitch" DockPanel.Dock="Right" OnContent="" OffContent="" />
+            <TextBlock Text="{l:T recv.chkFixed}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="h2" Text="{l:T set.sendingTitle}" />
+          <DockPanel>
+            <NumericUpDown x:Name="ConnectionsBox" DockPanel.Dock="Right" Width="140" Minimum="1" Maximum="16" Increment="1" FormatString="0" />
+            <StackPanel>
+              <TextBlock Text="{l:T set.connections}" />
+              <TextBlock Classes="caption" Text="{l:T set.connectionsHint}" />
+            </StackPanel>
+          </DockPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="{l:T set.ignore}" />
+            <TextBox x:Name="ExcludesBox" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

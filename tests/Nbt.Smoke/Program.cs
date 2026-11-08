@@ -46,7 +46,8 @@ using (var fs = File.Create(Path.Combine(src, "grande.bin")))
 }
 var lockedPath = Path.Combine(src, "bloqueado.dat");
 File.WriteAllText(lockedPath, "segredo");
-var locker = new FileStream(lockedPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+// Trava exclusiva só existe no Windows; no Linux/macOS o arquivo é lido normalmente.
+var locker = OperatingSystem.IsWindows() ? new FileStream(lockedPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None) : null;
 
 const int port = 50615;
 var receiver = new Receiver { DestinationRoot = dst, Port = port, Name = "RECEPTOR-TESTE" };
@@ -79,8 +80,8 @@ async Task<(TransferResult, TransferStats, double)> Run()
 Console.WriteLine("Primeira cópia:");
 var (r1, s1, t1) = await Run();
 Console.WriteLine($"  {Format.Bytes(s1.BytesDone)} em {t1:0.0}s = {Format.Speed(s1.BytesDone / t1)}");
-bool admin = ShadowCopies.IsElevated;
-Console.WriteLine(admin ? "  (administrador: arquivo bloqueado deve vir da Shadow Copy)" : "  (sem admin: arquivo bloqueado deve falhar)");
+bool admin = !OperatingSystem.IsWindows() || ShadowCopies.IsElevated; // "bloqueado.dat" deve chegar
+Console.WriteLine(!OperatingSystem.IsWindows() ? "  (fora do Windows: sem trava exclusiva)" : admin ? "  (administrador: arquivo bloqueado deve vir da Shadow Copy)" : "  (sem admin: arquivo bloqueado deve falhar)");
 Check(r1.FilesOk == (admin ? 2004 : 2003), $"arquivos ok = {r1.FilesOk}");
 if (admin)
     Check(r1.FilesFailed == 0, "arquivo bloqueado copiado via Shadow Copy");
@@ -106,7 +107,7 @@ else
 Check(Directory.EnumerateFiles(Path.Combine(dst, "PC-CLIENTE"), "_NBT_relatorio_*").Any(), "relatório gravado");
 
 Console.WriteLine("Segunda cópia (deve pular):");
-locker.Dispose();
+locker?.Dispose();
 var (r2, s2, _) = await Run();
 Check(s2.SkippedFiles == (admin ? 2004 : 2003) && r2.FilesOk == (admin ? 0 : 1), $"pulados = {s2.SkippedFiles}, copiados = {r2.FilesOk}");
 

@@ -1,0 +1,61 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NetBackupTool.App"
+             RequestedThemeVariant="Default">
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="PageBg" Color="#F4F6F9" />
+          <SolidColorBrush x:Key="SideBg" Color="#E9EDF2" />
+          <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="CardBorder" Color="#DDE2E8" />
+          <SolidColorBrush x:Key="MutedText" Color="#5F6B7A" />
+          <SolidColorBrush x:Key="NavActiveBg" Color="#D6E6F7" />
+          <SolidColorBrush x:Key="NavActiveFg" Color="#0B4E8F" />
+          <SolidColorBrush x:Key="AccentText" Color="#0E64B4" />
+          <SolidColorBrush x:Key="ChipBg" Color="#F0F3F7" />
+          <SolidColorBrush x:Key="OkBg" Color="#DDF3E4" />
+          <SolidColorBrush x:Key="OkFg" Color="#1B6E3A" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="PageBg" Color="#1B1D21" />
+          <SolidColorBrush x:Key="SideBg" Color="#16181B" />
+          <SolidColorBrush x:Key="CardBg" Color="#24272C" />
+          <SolidColorBrush x:Key="CardBorder" Color="#33373E" />
+          <SolidColorBrush x:Key="MutedText" Color="#A3ACB8" />
+          <SolidColorBrush x:Key="NavActiveBg" Color="#1E3A57" />
+          <SolidColorBrush x:Key="NavActiveFg" Color="#BFDBF7" />
+          <SolidColorBrush x:Key="AccentText" Color="#6AB0F0" />
+          <SolidColorBrush x:Key="ChipBg" Color="#2C3036" />
+          <SolidColorBrush x:Key="OkBg" Color="#1E3B29" />
+          <SolidColorBrush x:Key="OkFg" Color="#9FE0B5" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Ícones desenhados em grade 24x24 -->
+      <StreamGeometry x:Key="IconUpload">M12 3 L18 9 H14 V15 H10 V9 H6 Z M5 18 H19 V20.5 H5 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconDownload">M10 3 H14 V9 H18 L12 15 L6 9 H10 Z M5 18 H19 V20.5 H5 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconSettings">M3 5.5 H21 V7.5 H3 Z M3 11 H21 V13 H3 Z M3 16.5 H21 V18.5 H3 Z M8 3.5 A3 3 0 1 1 7.99 3.5 Z M16 9 A3 3 0 1 1 15.99 9 Z M10 14.5 A3 3 0 1 1 9.99 14.5 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconInfo">F0 M12 2 A10 10 0 1 1 11.99 2 Z M12 4 A8 8 0 1 0 12.01 4 Z M11 10.5 H13 V17 H11 Z M11 7 H13 V9 H11 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconFolder">M3 6.5 C3 5.1 4.1 4 5.5 4 H9.5 L11.5 6 H18.5 C19.9 6 21 7.1 21 8.5 V17.5 C21 18.9 19.9 20 18.5 20 H5.5 C4.1 20 3 18.9 3 17.5 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconFile">M7 2 H14 L19 7 V20 C19 21.1 18.1 22 17 22 H7 C5.9 22 5 21.1 5 20 V4 C5 2.9 5.9 2 7 2 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconComputer">F0 M3 4 H21 V16 H3 Z M5 6 V14 H19 V6 Z M8 18 H16 V20 H8 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconClose">M6.4 5 L12 10.6 L17.6 5 L19 6.4 L13.4 12 L19 17.6 L17.6 19 L12 13.4 L6.4 19 L5 17.6 L10.6 12 L5 6.4 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconPlus">M11 5 H13 V11 H19 V13 H13 V19 H11 V13 H5 V11 H11 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconUser">F0 M12 3 A4.5 4.5 0 1 1 11.99 3 Z M4 20 C4 15.6 7.6 13 12 13 C16.4 13 20 15.6 20 20 V21 H4 Z</StreamGeometry>
+      <StreamGeometry x:Key="IconShield">M12 2 L20 5 V11 C20 16 16.6 20 12 22 C7.4 20 4 16 4 11 V5 Z</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#0E64B4" RegionColor="#FFFFFF" />
+        <ColorPaletteResources x:Key="Dark" Accent="#2F86D6" RegionColor="#24272C" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://NetBackupTool/Styles.axaml" />
+  </Application.Styles>
+</Application>
