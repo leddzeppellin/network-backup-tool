@@ -64,6 +64,7 @@ public partial class MainWindow : Window
     public void StartHidden()
     {
         Navigate(ReceivePage, NavReceive);
+        if (Settings.DestinationRoot.Length == 0) ShowFromBackground();
         ReceivePage.EnsureReceiving();
     }
 

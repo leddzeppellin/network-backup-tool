@@ -6,7 +6,8 @@ namespace NetBackupTool;
 /// <summary>Configurações do usuário (mesmo arquivo e formato da versão 1.x).</summary>
 public sealed class Settings
 {
-    public string DestinationRoot { get; set; } = Platform.DefaultDestination();
+    /// <summary>Vazio até o usuário escolher (no macOS a Área de Trabalho exige permissão).</summary>
+    public string DestinationRoot { get; set; } = "";
     public int Connections { get; set; } = 4;
     public string Excludes { get; set; } = Manifest.DefaultExcludes;
     public string LastHost { get; set; } = "";

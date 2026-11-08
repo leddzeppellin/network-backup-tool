@@ -16,7 +16,11 @@ public partial class AboutView : UserControl
         VersionText.Text = L.T("about.version", Updater.Current.ToString(3));
         if (main == null) return;
         ProjectButton.Click += (_, _) => Platform.OpenUrl(Updater.ProjectUrl);
-        ReportsButton.Click += (_, _) => Platform.OpenFolder(main.Settings.DestinationRoot);
+        ReportsButton.Click += async (_, _) =>
+        {
+            if (main.Settings.DestinationRoot.Length == 0) await Dialogs.Show(main, L.T("recv.noFolder"));
+            else Platform.OpenFolder(main.Settings.DestinationRoot);
+        };
         UpdateButton.Click += async (_, _) => await CheckForUpdates();
     }
 

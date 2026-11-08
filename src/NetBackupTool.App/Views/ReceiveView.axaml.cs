@@ -28,7 +28,7 @@ public partial class ReceiveView : UserControl
         InitializeComponent();
         if (main == null) return;
 
-        DestText.Text = main.Settings.DestinationRoot;
+        ShowDestination();
         StartStopButton.Click += (_, _) => Toggle();
         NewCodeButton.Click += (_, _) =>
         {
@@ -80,19 +80,29 @@ public partial class ReceiveView : UserControl
         ReceivingChanged?.Invoke(_receiver != null);
     }
 
-    private async Task ChooseDestination()
+    private void ShowDestination()
     {
-        var picked = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var path = _main.Settings.DestinationRoot;
+        DestText.Text = path.Length > 0 ? path : L.T("recv.noFolder");
+        DestText.Opacity = path.Length > 0 ? 1 : 0.6;
+        OpenButton.IsEnabled = path.Length > 0;
+    }
+
+    /// <summary>Abre a seleção de pasta do sistema; devolve false se o usuário cancelar.</summary>
+    public async Task<bool> ChooseDestination()
+    {
+        var top = TopLevel.GetTopLevel(this) ?? TopLevel.GetTopLevel(_main);
+        if (top == null) return false;
+        var picked = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = L.T("recv.pickDest"),
         });
-        if (picked.FirstOrDefault()?.TryGetLocalPath() is { } path)
-        {
-            _main.Settings.DestinationRoot = path;
-            _main.Settings.Save();
-            DestText.Text = path;
-            if (_receiver != null) _receiver.DestinationRoot = path;
-        }
+        if (picked.FirstOrDefault()?.TryGetLocalPath() is not { } path) return false;
+        _main.Settings.DestinationRoot = path;
+        _main.Settings.Save();
+        if (_receiver != null) _receiver.DestinationRoot = path;
+        ShowDestination();
+        return true;
     }
 
     public void EnsureReceiving()
@@ -111,14 +121,25 @@ public partial class ReceiveView : UserControl
         }
 
         var settings = _main.Settings;
-        try
+        // Primeiro uso (ou pasta que deixou de existir / ficou sem permissão): pede para escolher.
+        while (true)
         {
-            Directory.CreateDirectory(settings.DestinationRoot);
-        }
-        catch (Exception ex)
-        {
-            await Dialogs.Show(_main, L.T("recv.destError", ex.Message), error: true);
-            return;
+            if (settings.DestinationRoot.Length == 0)
+            {
+                if (!await ChooseDestination()) return;
+                continue;
+            }
+            try
+            {
+                Directory.CreateDirectory(settings.DestinationRoot);
+                break;
+            }
+            catch (Exception ex)
+            {
+                await Dialogs.Show(_main, L.T("recv.destError", ex.Message), error: true);
+                settings.DestinationRoot = "";
+                ShowDestination();
+            }
         }
 
         var receiver = new Receiver { DestinationRoot = settings.DestinationRoot, FixedCode = settings.FixedCode.Length == 6 };

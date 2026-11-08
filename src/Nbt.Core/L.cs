@@ -322,7 +322,7 @@ public static class L
         ["about.desc"] = ("Copia arquivos entre computadores da rede local, sem compartilhamento do sistema.", "Copies files between computers on the local network, without system file sharing.", "Copia archivos entre equipos de la red local, sin el uso compartido del sistema."),
         ["about.version"] = ("Versão {0}", "Version {0}", "Versión {0}"),
         ["about.license"] = ("© 2026 Ricardo Valério da Silva · Licença MIT", "© 2026 Ricardo Valério da Silva · MIT License", "© 2026 Ricardo Valério da Silva · Licencia MIT"),
-        ["dest.default"] = ("Backups de clientes", "Client backups", "Copias de clientes"),
+        ["recv.noFolder"] = ("Nenhuma pasta escolhida ainda", "No folder chosen yet", "Ninguna carpeta elegida aún"),
         ["upd.openPage"] = ("Abrir a página de download?", "Open the download page?", "¿Abrir la página de descarga?"),
         ["upd.manual"] = ("Versão {0} disponível (você tem a {1}). Neste sistema a atualização é feita baixando o novo pacote.", "Version {0} is available (you have {1}). On this system, update by downloading the new package.", "La versión {0} está disponible (tienes la {1}). En este sistema se actualiza descargando el paquete nuevo."),
         ["dlg.yes"] = ("Sim", "Yes", "Sí"),

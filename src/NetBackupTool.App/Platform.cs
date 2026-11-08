@@ -13,13 +13,6 @@ public static class Platform
     public static string Exe => Environment.ProcessPath!;
     private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-    public static string DefaultDestination()
-    {
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        var root = Directory.Exists(desktop) && desktop.Length > 0 ? desktop : Home;
-        return Path.Combine(root, L.T("dest.default"));
-    }
-
     /// <summary>Área de Trabalho, Documentos, Imagens, Músicas, Vídeos, Downloads (e Favoritos no Windows).</summary>
     public static List<string> UserFolders()
     {

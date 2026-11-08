@@ -37,6 +37,11 @@ public partial class App : Application
                 if (!Options.Hidden) desktop.MainWindow = window;
                 else window.StartHidden();
                 SingleInstance.Listen(() => Dispatcher.UIThread.Post(window.ShowFromBackground));
+                if (TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable)
+                    activatable.Activated += (_, e) =>
+                    {
+                        if (e.Kind == ActivationKind.Reopen) window.ShowFromBackground();
+                    };
             }
         }
         base.OnFrameworkInitializationCompleted();

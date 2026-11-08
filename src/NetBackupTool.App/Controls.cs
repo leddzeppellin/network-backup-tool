@@ -118,6 +118,7 @@ public sealed class Toast : Window
 
     private Toast(string title, string text, Action? onClick)
     {
+        Title = "Network Backup Tool";
         SystemDecorations = SystemDecorations.None;
         SizeToContent = SizeToContent.WidthAndHeight;
         CanResize = false;

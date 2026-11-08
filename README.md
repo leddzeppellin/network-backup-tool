@@ -37,6 +37,8 @@ combinação.
 3. Clique no seu computador, que aparece sozinho em "Encontrados na rede" (ou digite o IP),
    digite o código e clique em **Enviar**.
 
+Na primeira vez que você inicia a recepção, o programa pede a pasta onde salvar e passa a lembrar
+dela (dá para trocar em **Receber → Escolher**).
 Os arquivos chegam em `<pasta de destino>/<nome do PC do cliente>/C/Users/...`, espelhando o
 caminho original. Ao fim, um `_NBT_relatorio_<data>.txt` fica junto, com o que foi copiado e o que falhou.
 
