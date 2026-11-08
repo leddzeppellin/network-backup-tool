@@ -12,6 +12,8 @@ public sealed class Settings
     public string LastHost { get; set; } = "";
     /// <summary>Fechar a janela deixa o programa recebendo, com ícone perto do relógio.</summary>
     public bool KeepInTray { get; set; }
+    /// <summary>"auto" segue o idioma do Windows; ou "pt", "en", "es".</summary>
+    public string Language { get; set; } = "auto";
     /// <summary>Código que não muda entre usos; vazio = código novo a cada início.</summary>
     public string FixedCode { get; set; } = "";
 

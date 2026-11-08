@@ -27,6 +27,15 @@ que roda em qualquer Windows 10/11 64 bits, sem instalar nada — dá para levar
 Os arquivos chegam em `<pasta de destino>\<nome do PC do cliente>\C\Users\...`, espelhando o
 caminho original. Ao fim, um `_NBT_relatorio_<data>.txt` fica junto, com o que foi copiado e o que falhou.
 
+## Idiomas, ajuda e atualização
+
+- **Idioma / Language**: português, inglês e espanhol. No modo automático segue o idioma do
+  Windows (outros idiomas abrem em inglês).
+- **Ajuda → Verificar atualizações**: consulta a última versão publicada aqui no GitHub e, se
+  houver uma nova, baixa, confere o SHA-256 publicado, troca o `.exe` e reabre. Só acontece
+  quando você clica.
+- **Ajuda** também tem Como usar, Abrir pasta de relatórios, Página do projeto e Sobre.
+
 ## Modo persistente
 
 Na aba **Receber**, para deixar o seu PC sempre pronto:
@@ -110,7 +119,8 @@ certificado fornecido pela [SignPath.io](https://about.signpath.io).
 
 - Autor, revisor e aprovador das versões: [Ricardo Valério da Silva](https://github.com/leddzeppellin)
 - Privacidade: o programa não envia dados a nenhum serviço externo; só conversa com o outro
-  computador da rede local que você indicar.
+  computador da rede local que você indicar e, quando você clica em "Verificar atualizações",
+  consulta as releases deste repositório no GitHub.
 
 ## Licença
 

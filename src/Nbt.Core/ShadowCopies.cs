@@ -63,13 +63,13 @@ public sealed class ShadowCopies : IDisposable
     {
         if (!IsElevated)
         {
-            _log("Arquivo em uso: para copiá-lo via Shadow Copy, abra o programa como administrador.");
+            _log(L.T("vss.needAdmin"));
             return null;
         }
         try
         {
             if (new DriveInfo(volume).DriveType != DriveType.Fixed) return null;
-            _log($"Arquivo em uso: criando Shadow Copy de {volume} (alguns segundos)...");
+            _log(L.T("vss.creating", volume));
             using var cls = new ManagementClass(@"\\.\root\cimv2", "Win32_ShadowCopy", null);
             using var input = cls.GetMethodParameters("Create");
             input["Volume"] = volume;
@@ -78,7 +78,7 @@ public sealed class ShadowCopies : IDisposable
             var rc = Convert.ToUInt32(output["ReturnValue"]);
             if (rc != 0)
             {
-                _log($"Não foi possível criar a Shadow Copy de {volume} (código {rc}).");
+                _log(L.T("vss.createFailed", volume, rc));
                 return null;
             }
             var id = (string)output["ShadowID"];
@@ -90,14 +90,14 @@ public sealed class ShadowCopies : IDisposable
                 using (o)
                 {
                     var device = (string)o["DeviceObject"];
-                    _log($"Shadow Copy pronta para {volume}: arquivos em uso serão lidos dela.");
+                    _log(L.T("vss.ready", volume));
                     return device;
                 }
             return null;
         }
         catch (Exception ex)
         {
-            _log($"Shadow Copy indisponível para {volume}: {ex.Message}");
+            _log(L.T("vss.unavailable", volume, ex.Message));
             return null;
         }
     }
@@ -119,7 +119,7 @@ public sealed class ShadowCopies : IDisposable
         }
         catch (Exception ex)
         {
-            _log($"Não consegui apagar a Shadow Copy {id}: {ex.Message}");
+            _log(L.T("vss.deleteFailed", id, ex.Message));
         }
     }
 

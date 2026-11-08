@@ -1,3 +1,5 @@
+using Nbt.Core;
+
 namespace NetBackupTool;
 
 static class Program
@@ -6,7 +8,10 @@ static class Program
     static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        L.Set(Settings.Load().Language);
+        Updater.CleanupOld();
         var handoff = Handoff.FromArgs(args);
+        bool Has(string a) => args.Any(x => x.Trim('-', '/').Equals(a, StringComparison.OrdinalIgnoreCase));
 
         // Uma instância por usuário: abrir de novo só traz a janela existente para a frente
         // (importante com o modo persistente, que deixa o programa rodando perto do relógio).
@@ -21,6 +26,13 @@ static class Program
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException) { }
 
+        // Reabertura (troca de idioma, atualização): espera a instância anterior terminar de fechar.
+        if (!first && Has("reiniciar") && mutex != null)
+        {
+            try { first = mutex.WaitOne(TimeSpan.FromSeconds(15)); }
+            catch (AbandonedMutexException) { first = true; }
+        }
+
         if (!first && handoff == null)
         {
             showSignal?.Set();
@@ -28,7 +40,6 @@ static class Program
         }
 
         // "receber" abre direto na recepção; "--bandeja" inicia escondido (usado ao iniciar com o Windows).
-        bool Has(string a) => args.Any(x => x.Trim('-', '/').Equals(a, StringComparison.OrdinalIgnoreCase));
         Application.Run(new MainForm(Has("receber"), handoff, Has("bandeja"), showSignal));
     }
 }

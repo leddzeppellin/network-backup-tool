@@ -87,7 +87,7 @@ public static class Manifest
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"Sem acesso a {dir.FullName}: {ex.Message}");
+                    result.Warnings.Add(L.T("scan.noAccess", dir.FullName, ex.Message));
                     continue;
                 }
 
@@ -115,7 +115,7 @@ public static class Manifest
             ct.ThrowIfCancellationRequested();
             if (Directory.Exists(src)) AddDir(new DirectoryInfo(src));
             else if (File.Exists(src)) AddFile(new FileInfo(src));
-            else result.Warnings.Add($"Não encontrado: {src}");
+            else result.Warnings.Add(L.T("scan.notFound", src));
         }
         progress?.Invoke(result.FileCount);
         return result;
@@ -136,7 +136,7 @@ public static class Manifest
     public static List<FileEntry> Read(BinaryReader r)
     {
         int count = r.ReadInt32();
-        if (count < 0 || count > 50_000_000) throw new InvalidDataException("Manifesto inválido.");
+        if (count < 0 || count > 50_000_000) throw new InvalidDataException(L.T("man.invalid"));
         var list = new List<FileEntry>(count);
         for (int i = 0; i < count; i++)
         {
@@ -144,7 +144,7 @@ public static class Manifest
             var size = r.ReadInt64();
             var ticks = r.ReadInt64();
             var isDir = r.ReadBoolean();
-            if (size < 0) throw new InvalidDataException("Tamanho inválido no manifesto.");
+            if (size < 0) throw new InvalidDataException(L.T("man.badSize"));
             list.Add(new FileEntry(path, size, ticks, isDir));
         }
         return list;
@@ -162,7 +162,7 @@ public static class Manifest
         foreach (var p in parts)
         {
             if (p.Length == 0 || p == "." || p == "..")
-                throw new InvalidDataException($"Caminho inválido recebido: {relative}");
+                throw new InvalidDataException(L.T("man.badPath", relative));
             var fixedPart = new string(p.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).TrimEnd(' ', '.');
             if (fixedPart.Length == 0) fixedPart = "_";
             clean.Add(fixedPart);
@@ -170,7 +170,7 @@ public static class Manifest
         var full = Path.GetFullPath(Path.Combine(baseDir, Path.Combine(clean.ToArray())));
         var root = Path.GetFullPath(baseDir).TrimEnd('\\') + "\\";
         if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"Caminho fora da pasta de destino: {relative}");
+            throw new InvalidDataException(L.T("man.outside", relative));
         return full;
     }
 

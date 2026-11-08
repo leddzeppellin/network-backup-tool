@@ -47,17 +47,17 @@ public sealed class Sender
         w.Flush();
 
         var status = r.ReadByte();
-        if (status == Protocol.StatusBadCode) throw new TransferException("Código incorreto. Confira o código mostrado no computador que recebe.");
-        if (status != Protocol.StatusOk) throw new TransferException("O receptor recusou a conexão.");
+        if (status == Protocol.StatusBadCode) throw new TransferException(L.T("send.badCode"));
+        if (status != Protocol.StatusOk) throw new TransferException(L.T("send.refused"));
         var token = r.ReadBytesExact(16);
         var receiverName = r.ReadString();
-        Log($"Conectado a {receiverName}. Enviando lista de {scan.Entries.Count:N0} itens...");
+        Log(L.T("send.connected", receiverName, scan.Entries.Count));
 
         Manifest.Write(w, scan.Entries);
         w.Flush();
 
         status = r.ReadByte();
-        if (status != Protocol.StatusOk) throw new TransferException("Receptor recusou: " + r.ReadString());
+        if (status != Protocol.StatusOk) throw new TransferException(L.T("send.refusedReason", r.ReadString()));
         var bitset = r.ReadBytesExact(r.ReadInt32());
 
         var entries = scan.Entries;
@@ -97,8 +97,8 @@ public sealed class Sender
         stats.TotalFiles = needFiles;
         stats.TotalBytes = needBytes;
         if (stats.SkippedFiles > 0)
-            Log($"{stats.SkippedFiles:N0} arquivos já estão no destino e serão pulados ({Format.Bytes(stats.SkippedBytes)}).");
-        Log($"Transferindo {needFiles:N0} arquivos ({Format.Bytes(needBytes)}) por {Connections} conexões.");
+            Log(L.T("send.skipping", stats.SkippedFiles, Format.Bytes(stats.SkippedBytes)));
+        Log(L.T("send.transferring", needFiles, Format.Bytes(needBytes), Connections));
 
         // Criada só se algum arquivo estiver bloqueado; apagada ao fim do envio.
         using var shadows = UseShadowCopy ? new ShadowCopies(Log) : null;
@@ -143,7 +143,7 @@ public sealed class Sender
         w.Write(Protocol.ConnData);
         w.Write(token);
         w.Flush();
-        if (r.ReadByte() != Protocol.StatusOk) throw new TransferException("Conexão de dados recusada pelo receptor.");
+        if (r.ReadByte() != Protocol.StatusOk) throw new TransferException(L.T("send.dataRefused"));
 
         var buffer = new byte[Protocol.ChunkSize];
         while (true)
@@ -171,7 +171,7 @@ public sealed class Sender
                         try
                         {
                             st.Handle = OpenSource(shadowPath);
-                            Log($"Em uso, copiado da Shadow Copy: {entry.SourcePath}");
+                            Log(L.T("send.fromShadow", entry.SourcePath));
                         }
                         catch (Exception ex2)
                         {
@@ -183,14 +183,14 @@ public sealed class Sender
                     {
                         st.Failed = true;
                         abortReason = ShadowCopies.IsLockError(ex)
-                            ? ex.Message + " Feche o programa que usa o arquivo, ou abra o Network Backup Tool como administrador para usar Shadow Copy."
+                            ? ex.Message + " " + L.T("send.lockedHint")
                             : ex.Message;
                     }
                 }
                 if (st.Failed && !st.AbortSent)
                 {
                     st.AbortSent = true;
-                    abortReason ??= "falha de leitura";
+                    abortReason ??= L.T("send.readFailed");
                 }
                 else if (st.Failed)
                 {
@@ -207,7 +207,7 @@ public sealed class Sender
                     while (got < c.Length)
                     {
                         int n = RandomAccess.Read(handle, buffer.AsSpan(got, c.Length - got), c.Offset + got);
-                        if (n == 0) throw new IOException("o arquivo diminuiu durante a cópia");
+                        if (n == 0) throw new IOException(L.T("send.fileShrank"));
                         got += n;
                     }
                 }
@@ -224,7 +224,7 @@ public sealed class Sender
 
             if (abortReason != null)
             {
-                Log($"ERRO ao ler {entry.SourcePath}: {abortReason}");
+                Log(L.T("send.readError", entry.SourcePath, abortReason));
                 w.Write(c.File);
                 w.Write(0L);
                 w.Write(Protocol.AbortLength);
@@ -255,7 +255,7 @@ public sealed class Sender
         w.Write(Protocol.EndOfStream);
         w.Flush();
         // O receptor só responde depois de gravar tudo o que chegou por esta conexão.
-        if (r.ReadByte() != Protocol.StatusOk) throw new TransferException("Receptor não confirmou o fim dos dados.");
+        if (r.ReadByte() != Protocol.StatusOk) throw new TransferException(L.T("send.noEndAck"));
     }
 
     // FileShare.ReadWrite|Delete: consegue ler arquivos que outros programas mantêm abertos sem exclusividade.

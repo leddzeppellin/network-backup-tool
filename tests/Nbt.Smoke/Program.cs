@@ -2,6 +2,9 @@
 using System.Security.Cryptography;
 using Nbt.Core;
 
+// As verificações abaixo procuram trechos das mensagens em português.
+L.Set("pt");
+
 // Uso manual: Nbt.Smoke find  — só a descoberta, como no botão "Procurar na rede".
 if (args.Length == 1 && args[0] == "find")
 {
@@ -110,6 +113,21 @@ Check(s2.SkippedFiles == (admin ? 2004 : 2003) && r2.FilesOk == (admin ? 0 : 1),
 Console.WriteLine("Caminho malicioso:");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"..\..\Windows\x.dll")), "'..' recusado");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"C:\Windows\x.dll")) || !Manifest.ResolveSafe(dst, @"C:\Windows\x.dll").StartsWith(@"C:\Windows"), "absoluto contido no destino");
+
+Console.WriteLine("Traduções:");
+{
+    var problems = L.Problems().ToList();
+    foreach (var pr in problems) Console.WriteLine("    " + pr);
+    Check(problems.Count == 0, "todos os textos existem em pt/en/es com os mesmos marcadores");
+    foreach (var lang in L.Languages)
+    {
+        L.Set(lang);
+        _ = L.T("send.done", "1s", 1, 2, 3, "1 MB/s"); // não pode lançar FormatException
+    }
+    L.Set("en");
+    Check(L.T("send.badCode").StartsWith("Wrong code"), "inglês ativo");
+    L.Set("pt");
+}
 
 Console.WriteLine("Código fixo:");
 {

@@ -89,7 +89,7 @@ public sealed class Receiver : IDisposable
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Descoberta automática indisponível ({ex.Message}). Use o IP manualmente.");
+            Log?.Invoke(L.T("recv.noDiscovery", ex.Message));
         }
     }
 
@@ -155,7 +155,7 @@ public sealed class Receiver : IDisposable
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Erro na conexão de {remoteText}: {ex.Message}");
+            Log?.Invoke(L.T("recv.connError", remoteText, ex.Message));
         }
     }
 
@@ -174,22 +174,22 @@ public sealed class Receiver : IDisposable
             w.Flush();
             if (locked)
             {
-                Log?.Invoke($"Tentativa de {senderName} ({remote}) recusada: bloqueio por códigos errados em vigor.");
+                Log?.Invoke(L.T("recv.locked", senderName, remote));
                 return;
             }
-            Log?.Invoke($"Tentativa com código errado de {senderName} ({remote}).");
+            Log?.Invoke(L.T("recv.badCode", senderName, remote));
             if (Interlocked.Increment(ref _failedAuth) >= Protocol.MaxFailedAuth)
             {
                 _failedAuth = 0;
                 if (FixedCode)
                 {
                     _lockedUntil = DateTime.UtcNow + Lockout;
-                    Log?.Invoke($"Muitas tentativas erradas: novas conexões bloqueadas por {Lockout.TotalMinutes:0} minutos.");
+                    Log?.Invoke(L.T("recv.lockout", Lockout.TotalMinutes));
                 }
                 else
                 {
                     SetCode(Protocol.NewCode());
-                    Log?.Invoke("Muitas tentativas erradas: o código foi trocado.");
+                    Log?.Invoke(L.T("recv.codeChanged"));
                     CodeChanged?.Invoke();
                 }
             }
@@ -218,12 +218,12 @@ public sealed class Receiver : IDisposable
             w.Write(Protocol.StatusRejected);
             w.Write(ex.Message);
             w.Flush();
-            Log?.Invoke($"Recusado {senderName}: {ex.Message}");
+            Log?.Invoke(L.T("recv.rejected", senderName, ex.Message));
             return;
         }
 
         _sessions[session] = 0;
-        Log?.Invoke($"Recebendo de {senderName} ({remote}) em {session.BaseDir}");
+        Log?.Invoke(L.T("recv.receiving", senderName, remote, session.BaseDir));
         SessionStarted?.Invoke(session);
 
         bool done = false;
@@ -239,7 +239,7 @@ public sealed class Receiver : IDisposable
         }
         catch (Exception ex) when (ex is IOException or SocketException or EndOfStreamException)
         {
-            session.AddError("Conexão com o remetente caiu antes do fim.");
+            session.AddError(L.T("recv.dropped"));
         }
 
         var result = Finish(session);
@@ -252,7 +252,7 @@ public sealed class Receiver : IDisposable
             foreach (var e in result.Errors) w.Write(e);
             w.Flush();
         }
-        Log?.Invoke($"Fim da sessão de {senderName}: {result.FilesOk:N0} ok, {result.FilesFailed:N0} com falha.");
+        Log?.Invoke(L.T("recv.sessionEnd", senderName, result.FilesOk, result.FilesFailed));
         SessionEnded?.Invoke(session, result);
     }
 
@@ -296,7 +296,7 @@ public sealed class Receiver : IDisposable
 
         var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(session.BaseDir))!);
         if (drive.IsReady && needBytes - reclaim > drive.AvailableFreeSpace)
-            throw new IOException($"Espaço insuficiente no destino: precisa de {Format.Bytes(needBytes - reclaim)}, livre {Format.Bytes(drive.AvailableFreeSpace)}.");
+            throw new IOException(L.T("recv.noSpace", Format.Bytes(needBytes - reclaim), Format.Bytes(drive.AvailableFreeSpace)));
 
         session.Files = files;
         session.Stats.TotalBytes = needBytes;
@@ -326,16 +326,16 @@ public sealed class Receiver : IDisposable
             long offset = r.ReadInt64();
             int len = r.ReadInt32();
             if ((uint)idx >= (uint)files.Length || files[idx] is not { } st)
-                throw new InvalidDataException("Índice de arquivo inválido.");
+                throw new InvalidDataException(L.T("recv.badIndex"));
 
             if (len == Protocol.AbortLength)
             {
                 var reason = r.ReadString();
-                lock (st) FailFile(session, st, $"{st.RelativePath}: não foi possível ler na origem ({reason})");
+                lock (st) FailFile(session, st, L.T("recv.sourceRead", st.RelativePath, reason));
                 continue;
             }
             if (len < 0 || len > Protocol.ChunkSize || offset < 0 || offset + len > st.Size)
-                throw new InvalidDataException("Bloco inválido.");
+                throw new InvalidDataException(L.T("recv.badBlock"));
 
             var data = buffer.AsSpan(0, len);
             r.BaseStream.ReadExactly(data);
@@ -347,7 +347,7 @@ public sealed class Receiver : IDisposable
                 if (st.Finished) continue;
                 if (!intact)
                 {
-                    FailFile(session, st, $"{st.RelativePath}: falha de integridade (dados corrompidos na rede)");
+                    FailFile(session, st, L.T("recv.integrity", st.RelativePath));
                     continue;
                 }
                 try
@@ -374,7 +374,7 @@ public sealed class Receiver : IDisposable
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    FailFile(session, st, $"{st.RelativePath}: erro ao gravar ({ex.Message})");
+                    FailFile(session, st, L.T("recv.writeError", st.RelativePath, ex.Message));
                 }
             }
         }
@@ -403,7 +403,7 @@ public sealed class Receiver : IDisposable
             if (st == null) continue;
             lock (st)
             {
-                if (!st.Finished) FailFile(session, st, $"{st.RelativePath}: incompleto");
+                if (!st.Finished) FailFile(session, st, L.T("recv.incomplete", st.RelativePath));
             }
         }
         var errors = session.Errors.ToList();
@@ -418,24 +418,24 @@ public sealed class Receiver : IDisposable
         {
             var path = Path.Combine(session.BaseDir, $"_NBT_relatorio_{session.Started:yyyyMMdd_HHmmss}.txt");
             var sb = new StringBuilder();
-            sb.AppendLine($"Network Backup Tool - relatório de cópia");
-            sb.AppendLine($"Origem:   {session.SenderName} ({session.RemoteAddress})");
-            sb.AppendLine($"Início:   {session.Started:dd/MM/yyyy HH:mm:ss}");
-            sb.AppendLine($"Fim:      {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
-            sb.AppendLine($"Copiados: {result.FilesOk:N0} arquivos ({Format.Bytes(session.Stats.BytesDone)})");
-            sb.AppendLine($"Pulados (já existiam iguais): {session.Stats.SkippedFiles:N0}");
-            sb.AppendLine($"Falhas:   {result.FilesFailed:N0}");
+            sb.AppendLine(L.T("report.title"));
+            sb.AppendLine(L.T("report.origin", session.SenderName, session.RemoteAddress));
+            sb.AppendLine(L.T("report.start", session.Started.ToString("G")));
+            sb.AppendLine(L.T("report.end", DateTime.Now.ToString("G")));
+            sb.AppendLine(L.T("report.copied", result.FilesOk, Format.Bytes(session.Stats.BytesDone)));
+            sb.AppendLine(L.T("report.skipped", session.Stats.SkippedFiles));
+            sb.AppendLine(L.T("report.failed", result.FilesFailed));
             if (result.Errors.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("Erros:");
+                sb.AppendLine(L.T("report.errors"));
                 foreach (var e in result.Errors) sb.AppendLine("  " + e);
             }
             File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Não foi possível gravar o relatório: {ex.Message}");
+            Log?.Invoke(L.T("recv.reportFail", ex.Message));
         }
     }
 }
