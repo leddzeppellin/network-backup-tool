@@ -43,6 +43,7 @@ public sealed class Receiver : IDisposable
     private UdpClient? _discovery;
     private CancellationTokenSource? _cts;
     private int _failedAuth;
+    private DateTime _lockedUntil;
     private readonly ConcurrentDictionary<ReceiveSession, byte> _sessions = new();
 
     public required string DestinationRoot { get; set; }
@@ -56,6 +57,13 @@ public sealed class Receiver : IDisposable
     public event Action<ReceiveSession, TransferResult>? SessionEnded;
 
     public IReadOnlyCollection<ReceiveSession> ActiveSessions => _sessions.Keys.ToList();
+
+    /// <summary>
+    /// Código fixo (modo persistente): em vez de trocar o código após tentativas erradas,
+    /// bloqueia novas tentativas por alguns minutos.
+    /// </summary>
+    public bool FixedCode { get; set; }
+    public static readonly TimeSpan Lockout = TimeSpan.FromMinutes(5);
 
     public void SetCode(string code)
     {
@@ -159,16 +167,31 @@ public sealed class Receiver : IDisposable
         var mac = r.ReadBytesExact(32);
         var senderName = r.ReadString();
 
-        if (!CryptographicOperations.FixedTimeEquals(mac, Protocol.ComputeAuth(Code, nonce)))
+        bool locked = DateTime.UtcNow < _lockedUntil;
+        if (locked || !CryptographicOperations.FixedTimeEquals(mac, Protocol.ComputeAuth(Code, nonce)))
         {
             w.Write(Protocol.StatusBadCode);
             w.Flush();
+            if (locked)
+            {
+                Log?.Invoke($"Tentativa de {senderName} ({remote}) recusada: bloqueio por códigos errados em vigor.");
+                return;
+            }
             Log?.Invoke($"Tentativa com código errado de {senderName} ({remote}).");
             if (Interlocked.Increment(ref _failedAuth) >= Protocol.MaxFailedAuth)
             {
-                SetCode(Protocol.NewCode());
-                Log?.Invoke("Muitas tentativas erradas: o código foi trocado.");
-                CodeChanged?.Invoke();
+                _failedAuth = 0;
+                if (FixedCode)
+                {
+                    _lockedUntil = DateTime.UtcNow + Lockout;
+                    Log?.Invoke($"Muitas tentativas erradas: novas conexões bloqueadas por {Lockout.TotalMinutes:0} minutos.");
+                }
+                else
+                {
+                    SetCode(Protocol.NewCode());
+                    Log?.Invoke("Muitas tentativas erradas: o código foi trocado.");
+                    CodeChanged?.Invoke();
+                }
             }
             return;
         }

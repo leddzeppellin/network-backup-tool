@@ -1,0 +1,66 @@
+name: Build
+
+# Em todo push/PR: compila e roda o teste de ponta a ponta.
+# Em tag v* (ex.: v1.1.0): também publica o .exe, assina (quando a SignPath estiver configurada)
+# e cria a release no GitHub.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Teste de ponta a ponta
+        run: dotnet run -c Release --project tests/Nbt.Smoke -- 64
+
+      - name: Publicar executável
+        shell: pwsh
+        run: |
+          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.0-dev" }
+          dotnet publish src/NetBackupTool -c Release -o publish -p:Version=$version -p:DebugType=none
+
+      - name: Enviar artefato
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetBackupTool
+          path: publish/NetBackupTool.exe
+
+      # Assinatura pela SignPath Foundation (gratuita para open source).
+      # Fica inativa até existir o segredo SIGNPATH_API_TOKEN e as variáveis SIGNPATH_* no repositório.
+      - name: Assinar com SignPath
+        if: github.ref_type == 'tag' && env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Criar release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = if (Test-Path signed/NetBackupTool.exe) { "signed/NetBackupTool.exe" } else { "publish/NetBackupTool.exe" }
+          gh release create "${{ github.ref_name }}" $exe --title "Network Backup Tool ${{ github.ref_name }}" --generate-notes

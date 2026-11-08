@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Win32;
 using Nbt.Core;
 
 namespace NetBackupTool;
@@ -37,7 +38,20 @@ public sealed class MainForm : Form
 
     private List<string>? _userFolders;
 
-    public MainForm(bool startReceiving, Handoff? handoff = null)
+    // Modo persistente
+    private readonly CheckBox _chkTray = new() { Text = "Ao fechar a janela, continuar recebendo (ícone perto do relógio)", AutoSize = true };
+    private readonly CheckBox _chkAutostart = new() { Text = "Iniciar com o Windows, já recebendo", AutoSize = true };
+    private readonly CheckBox _chkFixed = new() { Text = "Código fixo (não muda a cada uso)", AutoSize = true };
+    private readonly NotifyIcon _tray = new() { Text = "Network Backup Tool" };
+    private readonly ToolStripMenuItem _trayToggle = new("Iniciar recepção");
+    private bool _startHidden;
+    private bool _exiting;
+    private bool _trayHintShown;
+
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunValue = "NetBackupTool";
+
+    public MainForm(bool startReceiving, Handoff? handoff = null, bool startHidden = false, EventWaitHandle? showSignal = null)
     {
         Text = ShadowCopies.IsElevated ? "Network Backup Tool (Administrador)" : "Network Backup Tool";
         Font = new Font("Segoe UI", 9.5f);
@@ -69,11 +83,62 @@ public sealed class MainForm : Form
         _timer.Tick += (_, _) => RefreshProgress();
         _timer.Start();
 
+        SetupTray();
+        _startHidden = startHidden && _settings.KeepInTray;
+        if (showSignal != null)
+        {
+            // Outra execução do .exe pede para mostrar esta janela.
+            var t = new Thread(() =>
+            {
+                while (showSignal.WaitOne())
+                    if (IsHandleCreated) BeginInvoke(ShowWindow);
+            }) { IsBackground = true };
+            t.Start();
+        }
+
         if (startReceiving)
         {
             _tabs.SelectedIndex = 1;
-            Shown += (_, _) => ToggleReceive();
+            HandleCreated += (_, _) => BeginInvoke(() => { if (_receiver == null) ToggleReceive(); });
         }
+    }
+
+    protected override void SetVisibleCore(bool value)
+    {
+        // Iniciado com o Windows: cria a janela mas a mantém escondida, só com o ícone da bandeja.
+        if (_startHidden)
+        {
+            _startHidden = false;
+            if (!IsHandleCreated) CreateHandle();
+            value = false;
+        }
+        base.SetVisibleCore(value);
+    }
+
+    private void SetupTray()
+    {
+        _tray.Icon = Icon;
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("Abrir", null, (_, _) => ShowWindow());
+        menu.Items.Add(_trayToggle);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Sair", null, (_, _) => { _exiting = true; Close(); });
+        _trayToggle.Click += (_, _) => ToggleReceive();
+        _tray.ContextMenuStrip = menu;
+        _tray.DoubleClick += (_, _) => ShowWindow();
+        _tray.Visible = _settings.KeepInTray;
+    }
+
+    private void ShowWindow()
+    {
+        Show();
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        Activate();
+    }
+
+    private void Notify(string title, string text)
+    {
+        if (_tray.Visible && !Visible) _tray.ShowBalloonTip(5000, title, text, ToolTipIcon.Info);
     }
 
     private static TextBox NewLog() => new()
@@ -372,6 +437,7 @@ public sealed class MainForm : Form
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var destBox = new GroupBox { Text = "Salvar em (uma subpasta por computador de origem)", Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(8) };
@@ -400,14 +466,46 @@ public sealed class MainForm : Form
         codeSide.Controls.Add(_myAddress);
         codeSide.Controls.Add(NewButton("Gerar novo código", (_, _) =>
         {
-            if (_receiver != null) { _receiver.SetCode(Protocol.NewCode()); ShowCode(); }
+            var code = Protocol.NewCode();
+            _receiver?.SetCode(code);
+            if (_chkFixed.Checked) { _settings.FixedCode = code; _settings.Save(); }
+            ShowCode();
         }));
         codeSide.Controls.Add(NewButton("Liberar no firewall", (_, _) => AllowFirewall()));
         codeFlow.Controls.Add(_codeLabel, 0, 0);
         codeFlow.Controls.Add(codeSide, 1, 0);
         codeBox.Controls.Add(codeFlow);
-        _codeLabel.Text = "------";
         ShowAddresses();
+
+        var persist = new GroupBox { Text = "Modo persistente (deixa este PC sempre pronto para receber)", Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(8) };
+        var persistFlow = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        persistFlow.Controls.Add(_chkTray);
+        persistFlow.Controls.Add(_chkAutostart);
+        persistFlow.Controls.Add(_chkFixed);
+        persist.Controls.Add(persistFlow);
+        _chkTray.Checked = _settings.KeepInTray;
+        _chkAutostart.Checked = IsAutostart();
+        _chkFixed.Checked = _settings.FixedCode.Length == 6;
+        ShowCode();
+        _chkTray.CheckedChanged += (_, _) =>
+        {
+            _settings.KeepInTray = _chkTray.Checked;
+            _settings.Save();
+            _tray.Visible = _chkTray.Checked;
+            if (!_chkTray.Checked && _chkAutostart.Checked) _chkAutostart.Checked = false;
+        };
+        _chkAutostart.CheckedChanged += (_, _) =>
+        {
+            SetAutostart(_chkAutostart.Checked);
+            if (_chkAutostart.Checked && !_chkTray.Checked) _chkTray.Checked = true;
+        };
+        _chkFixed.CheckedChanged += (_, _) =>
+        {
+            _settings.FixedCode = _chkFixed.Checked ? (_receiver?.Code ?? Protocol.NewCode()) : "";
+            _settings.Save();
+            if (_receiver != null) _receiver.FixedCode = _chkFixed.Checked;
+            ShowCode();
+        };
 
         var action = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
         action.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -420,8 +518,9 @@ public sealed class MainForm : Form
 
         grid.Controls.Add(destBox, 0, 0);
         grid.Controls.Add(codeBox, 0, 1);
-        grid.Controls.Add(action, 0, 2);
-        grid.Controls.Add(_recvLog, 0, 3);
+        grid.Controls.Add(persist, 0, 2);
+        grid.Controls.Add(action, 0, 3);
+        grid.Controls.Add(_recvLog, 0, 4);
         page.Controls.Add(grid);
         return page;
     }
@@ -433,7 +532,26 @@ public sealed class MainForm : Form
         _myAddress.Text = $"Computador: {Environment.MachineName}\nEndereços:\n{string.Join("\n", lines)}";
     }
 
-    private void ShowCode() => _codeLabel.Text = _receiver?.Code ?? "------";
+    private void ShowCode()
+    {
+        _codeLabel.Text = _receiver?.Code ?? (_settings.FixedCode.Length == 6 ? _settings.FixedCode : "------");
+        _codeLabel.ForeColor = _receiver != null ? Color.FromArgb(0, 90, 160) : SystemColors.GrayText;
+        _tray.Text = _receiver != null ? $"Network Backup Tool — recebendo, código {_receiver.Code}" : "Network Backup Tool — parado";
+    }
+
+    private static bool IsAutostart()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+        return key?.GetValue(RunValue) is string;
+    }
+
+    private static void SetAutostart(bool on)
+    {
+        // HKCU\...\Run: só para este usuário, sem precisar de administrador.
+        using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+        if (on) key.SetValue(RunValue, $"\"{Environment.ProcessPath}\" receber --bandeja");
+        else key.DeleteValue(RunValue, false);
+    }
 
     private void ToggleReceive()
     {
@@ -445,6 +563,7 @@ public sealed class MainForm : Form
             _receiver.Stop();
             _receiver = null;
             _receive.Text = "Iniciar recepção";
+            _trayToggle.Text = "Iniciar recepção";
             _dest.Enabled = true;
             ShowCode();
             AppendLog(_recvLog, "Recepção parada.");
@@ -463,10 +582,15 @@ public sealed class MainForm : Form
         _settings.DestinationRoot = _dest.Text;
         _settings.Save();
 
-        var receiver = new Receiver { DestinationRoot = _dest.Text };
+        var receiver = new Receiver { DestinationRoot = _dest.Text, FixedCode = _settings.FixedCode.Length == 6 };
+        if (receiver.FixedCode) receiver.SetCode(_settings.FixedCode);
         receiver.Log += m => BeginInvoke(() => AppendLog(_recvLog, m));
         receiver.CodeChanged += () => BeginInvoke(ShowCode);
-        receiver.SessionStarted += _ => BeginInvoke(() => _recvSpeed.Reset());
+        receiver.SessionStarted += s => BeginInvoke(() =>
+        {
+            _recvSpeed.Reset();
+            Notify("Recebendo arquivos", $"{s.SenderName} começou a enviar.");
+        });
         receiver.SessionEnded += (s, r) => BeginInvoke(() =>
         {
             if (_receiver?.ActiveSessions.Count == 0)
@@ -476,6 +600,7 @@ public sealed class MainForm : Form
                                    $"{s.Stats.SkippedFiles:N0} já existiam, {r.FilesFailed:N0} falha(s).";
             }
             foreach (var e in r.Errors) AppendLog(_recvLog, "  FALHA: " + e);
+            Notify("Cópia concluída", $"{s.SenderName}: {r.FilesOk:N0} copiados" + (r.FilesFailed > 0 ? $", {r.FilesFailed:N0} com falha" : "") + ".");
         });
         try
         {
@@ -488,6 +613,7 @@ public sealed class MainForm : Form
         }
         _receiver = receiver;
         _receive.Text = "Parar recepção";
+        _trayToggle.Text = "Parar recepção";
         _dest.Enabled = false;
         ShowCode();
         ShowAddresses();
@@ -562,14 +688,31 @@ public sealed class MainForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        bool busy = _sendCts != null || _receiver?.ActiveSessions.Count > 0;
-        if (busy && MessageBox.Show(this, "Há cópia em andamento. Fechar mesmo assim?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        // Modo persistente: o X só esconde a janela; a recepção segue com o ícone perto do relógio.
+        if (!_exiting && e.CloseReason == CloseReason.UserClosing && _settings.KeepInTray && _receiver != null && _sendCts == null)
         {
             e.Cancel = true;
+            Hide();
+            if (!_trayHintShown)
+            {
+                _trayHintShown = true;
+                _tray.ShowBalloonTip(5000, "Continua recebendo",
+                    "O Network Backup Tool segue aguardando cópias. Clique no ícone para abrir ou use \"Sair\" no menu.", ToolTipIcon.Info);
+            }
+            return;
+        }
+        bool busy = _sendCts != null || _receiver?.ActiveSessions.Count > 0;
+        if (busy && e.CloseReason == CloseReason.UserClosing &&
+            MessageBox.Show(this, "Há cópia em andamento. Fechar mesmo assim?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        {
+            e.Cancel = true;
+            _exiting = false;
             return;
         }
         _sendCts?.Cancel();
         _receiver?.Stop();
+        _tray.Visible = false;
+        _tray.Dispose();
         base.OnFormClosing(e);
     }
 

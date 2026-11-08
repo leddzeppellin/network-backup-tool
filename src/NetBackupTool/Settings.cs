@@ -10,6 +10,10 @@ public sealed class Settings
     public int Connections { get; set; } = 4;
     public string Excludes { get; set; } = Manifest.DefaultExcludes;
     public string LastHost { get; set; } = "";
+    /// <summary>Fechar a janela deixa o programa recebendo, com ícone perto do relógio.</summary>
+    public bool KeepInTray { get; set; }
+    /// <summary>Código que não muda entre usos; vazio = código novo a cada início.</summary>
+    public string FixedCode { get; set; } = "";
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool", "settings.json");

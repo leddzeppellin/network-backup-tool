@@ -1,4 +1,10 @@
+<p align="center"><img src="assets/icon.png" width="128" alt="Network Backup Tool"></p>
+
 # Network Backup Tool
+
+[![Build](https://github.com/leddzeppellin/network-backup-tool/actions/workflows/build.yml/badge.svg)](https://github.com/leddzeppellin/network-backup-tool/actions/workflows/build.yml)
+
+**[Baixar a última versão (NetBackupTool.exe)](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool.exe)**
 
 Copia arquivos do PC de um cliente para outro PC da rede **sem compartilhamento do Windows**
 (sem SMB, sem pasta compartilhada, sem usuário/senha, sem grupo de trabalho). É um único `.exe`
@@ -21,7 +27,20 @@ que roda em qualquer Windows 10/11 64 bits, sem instalar nada — dá para levar
 Os arquivos chegam em `<pasta de destino>\<nome do PC do cliente>\C\Users\...`, espelhando o
 caminho original. Ao fim, um `_NBT_relatorio_<data>.txt` fica junto, com o que foi copiado e o que falhou.
 
-Atalho útil no seu PC: `NetBackupTool.exe receber` abre já recebendo.
+## Modo persistente
+
+Na aba **Receber**, para deixar o seu PC sempre pronto:
+
+- **Ao fechar a janela, continuar recebendo**: o X esconde a janela e o programa fica com um
+  ícone perto do relógio (clique para abrir; menu com Iniciar/Parar recepção e Sair).
+  Avisa quando uma cópia começa e termina.
+- **Iniciar com o Windows, já recebendo**: entra escondido junto com o Windows (só para o seu
+  usuário, sem admin). Se mover o `.exe` de pasta, desmarque e marque de novo.
+- **Código fixo**: o código não muda entre usos. Com código fixo, 5 tentativas erradas
+  bloqueiam novas conexões por 5 minutos (em vez de trocar o código).
+
+Abrir o `.exe` de novo só traz para a frente a janela que já está rodando.
+Atalho: `NetBackupTool.exe receber` abre já recebendo.
 
 ## Por que é rápido
 
@@ -81,3 +100,18 @@ Rodado num terminal **como administrador**, o mesmo teste confere que o arquivo 
 - `src/Nbt.Core` — protocolo, varredura (`Manifest`), `Sender`, `Receiver`, `Discovery`, `ShadowCopies` (VSS).
 - `src/NetBackupTool` — interface WinForms.
 - `tests/Nbt.Smoke` — teste de ponta a ponta.
+
+## Política de assinatura de código
+
+As versões publicadas em [Releases](https://github.com/leddzeppellin/network-backup-tool/releases)
+são compiladas pelo GitHub Actions a partir deste repositório. Assim que aprovado, o executável
+passa a ser assinado gratuitamente pela [SignPath Foundation](https://signpath.org), com
+certificado fornecido pela [SignPath.io](https://about.signpath.io).
+
+- Autor, revisor e aprovador das versões: [Ricardo Valério da Silva](https://github.com/leddzeppellin)
+- Privacidade: o programa não envia dados a nenhum serviço externo; só conversa com o outro
+  computador da rede local que você indicar.
+
+## Licença
+
+[MIT](LICENSE)

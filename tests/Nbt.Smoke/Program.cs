@@ -111,6 +111,23 @@ Console.WriteLine("Caminho malicioso:");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"..\..\Windows\x.dll")), "'..' recusado");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"C:\Windows\x.dll")) || !Manifest.ResolveSafe(dst, @"C:\Windows\x.dll").StartsWith(@"C:\Windows"), "absoluto contido no destino");
 
+Console.WriteLine("Código fixo:");
+{
+    var fixedRx = new Receiver { DestinationRoot = dst, Port = port + 1, FixedCode = true };
+    fixedRx.SetCode("424242");
+    fixedRx.Start();
+    var tiny = Manifest.Scan([Path.Combine(src, "acentuação ç.txt")], "", default);
+    async Task<bool> Try(string code)
+    {
+        try { await new Sender { Host = "127.0.0.1", Port = port + 1, Code = code }.SendAsync(tiny, new TransferStats(), default); return true; }
+        catch (TransferException) { return false; }
+    }
+    for (int i = 0; i < Protocol.MaxFailedAuth; i++) await Try("000000");
+    Check(fixedRx.Code == "424242", "código fixo não muda após tentativas erradas");
+    Check(!await Try("424242"), "código certo recusado durante o bloqueio");
+    fixedRx.Stop();
+}
+
 receiver.Stop();
 try { Directory.Delete(root, true); } catch { }
 if (admin)
