@@ -30,7 +30,7 @@ jobs:
         with:
           dotnet-version: "10.0.x"
       - name: Restaurar pacotes
-        run: dotnet restore tests/Nbt.Smoke -p:NuGetAudit=false -v n
+        run: dotnet restore tests/Nbt.Smoke -v n || (for f in src/Nbt.Core/obj/project.assets.json tests/Nbt.Smoke/obj/project.assets.json; do python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sys.argv[1], json.dumps(d.get('logs'), indent=1)); print(list(d.get('libraries',{}).keys()))" $f; done; exit 1)
       - name: Teste de ponta a ponta
         run: dotnet run -c Release --no-restore --project tests/Nbt.Smoke -- 64
 
