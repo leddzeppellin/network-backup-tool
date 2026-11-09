@@ -3,10 +3,10 @@
              xmlns:l="using:NetBackupTool"
              x:Class="NetBackupTool.SendView">
   <ScrollViewer>
-    <StackPanel Margin="32,28" Spacing="16" MaxWidth="900">
+    <StackPanel Classes="page" Spacing="16" MaxWidth="900">
       <StackPanel Spacing="2">
         <TextBlock Classes="h1" Text="{l:T nav.send}" />
-        <TextBlock Classes="muted" Text="{l:T send.subtitle}" />
+        <TextBlock x:Name="SubtitleText" Classes="muted" Text="{l:T send.subtitle}" TextWrapping="Wrap" />
       </StackPanel>
 
       <!-- O que copiar -->
@@ -14,10 +14,10 @@
         <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="{l:T send.whatTitle}" />
           <Border x:Name="DropHint" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{DynamicResource ChipBg}">
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-              <PathIcon Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="{DynamicResource MutedText}" />
-              <TextBlock Classes="muted" Text="{l:T send.dropHint}" VerticalAlignment="Center" />
-            </StackPanel>
+            <DockPanel HorizontalAlignment="Center">
+              <PathIcon DockPanel.Dock="Left" Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="{DynamicResource MutedText}" Margin="0,0,10,0" />
+              <TextBlock x:Name="DropHintText" Classes="muted" Text="{l:T send.dropHint}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </DockPanel>
           </Border>
           <ItemsControl x:Name="SourceList">
             <ItemsControl.ItemTemplate>
@@ -36,13 +36,13 @@
           </ItemsControl>
           <StackPanel Spacing="2" Margin="0,2,0,4">
             <CheckBox x:Name="FullPathsBox" Content="{l:T send.fullPaths}" />
-            <TextBlock Classes="caption" Text="{l:T send.fullPathsHint}" TextWrapping="Wrap" Margin="28,0,0,0" />
+            <TextBlock x:Name="FullPathsHint" Classes="caption" Text="{l:T send.fullPathsHint}" TextWrapping="Wrap" Margin="28,0,0,0" />
           </StackPanel>
           <WrapPanel>
             <Button x:Name="UserFoldersButton" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <PathIcon Data="{StaticResource IconUser}" Width="14" Height="14" />
-                <TextBlock Text="{l:T send.userFolders}" />
+                <TextBlock x:Name="UserFoldersText" Text="{l:T send.userFolders}" />
               </StackPanel>
             </Button>
             <Button x:Name="AddFolderButton" Margin="0,0,8,0">
@@ -65,9 +65,9 @@
       <Border Classes="card">
         <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="{l:T send.whereTitle}" />
-          <TextBlock x:Name="DiscoveryText" Classes="caption" Text="{l:T send.lookingShort}" />
+          <TextBlock x:Name="DiscoveryText" Classes="caption" Text="{l:T send.lookingShort}" TextWrapping="Wrap" />
           <WrapPanel x:Name="Receivers" />
-          <TextBox x:Name="HostBox" Watermark="{l:T send.typeHost}" MaxWidth="360" HorizontalAlignment="Left" Width="360" />
+          <TextBox x:Name="HostBox" Watermark="{l:T send.typeHost}" MaxWidth="360" HorizontalAlignment="Stretch" />
           <TextBlock Classes="caption" Text="{l:T send.codeTitle}" Margin="0,6,0,0" />
           <l:CodeBox x:Name="Code" />
           <DockPanel x:Name="AdminHint" Margin="0,6,0,0" IsVisible="False">

@@ -15,7 +15,7 @@ namespace NetBackupTool;
 
 public partial class SendView : UserControl
 {
-    private readonly MainWindow _main;
+    private readonly MainView _main;
     private readonly ObservableCollection<string> _sources = new();
     private List<string>? _userFolders;
     private CancellationTokenSource? _cts;
@@ -32,20 +32,31 @@ public partial class SendView : UserControl
 
     public SendView() : this(null!, null) { } // designer
 
-    public SendView(MainWindow main, Handoff? handoff)
+    public SendView(MainView main, Handoff? handoff)
     {
         _main = main;
         InitializeComponent();
         SourceList.ItemsSource = _sources;
+        if (Platform.IsAndroid)
+        {
+            SubtitleText.Text = L.T("mobile.sendSubtitle");
+            DropHintText.Text = L.T("mobile.dropHint");
+            FullPathsHint.Text = L.T("mobile.fullPathsHint");
+            UserFoldersText.Text = L.T("mobile.userFolders");
+        }
         _sources.CollectionChanged += (_, _) => DropHint.IsVisible = _sources.Count == 0;
 
-        UserFoldersButton.Click += (_, _) => { foreach (var p in _userFolders ?? Platform.UserFolders()) if (Directory.Exists(p)) AddSource(p); };
+        UserFoldersButton.Click += async (_, _) =>
+        {
+            if (Platform.EnsureStorageAccess != null && !await Platform.EnsureStorageAccess()) return;
+            foreach (var p in _userFolders ?? Platform.UserFolders()) if (Directory.Exists(p)) AddSource(p);
+        };
         AddFolderButton.Click += async (_, _) => await PickFolders();
         AddFilesButton.Click += async (_, _) => await PickFiles();
         WhatCard.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
         WhatCard.AddHandler(DragDrop.DropEvent, (_, e) =>
         {
-            foreach (var item in e.DataTransfer.TryGetFiles() ?? []) if (item.TryGetLocalPath() is { } p) AddSource(p);
+            foreach (var item in e.DataTransfer.TryGetFiles() ?? []) if (Platform.LocalPath(item) is { } p) AddSource(p);
         });
 
         HostBox.TextChanged += (_, _) =>
@@ -54,7 +65,7 @@ public partial class SendView : UserControl
         };
         SendButton.Click += async (_, _) => await ToggleSend();
 
-        if (Platform.IsWindows)
+        if (Platform.IsWindows && main?.Host.IsDesktop == true)
         {
             AdminHint.IsVisible = true;
             bool admin = ShadowCopies.IsElevated;
@@ -108,7 +119,18 @@ public partial class SendView : UserControl
         {
             AllowMultiple = true, Title = L.T("send.pickFolders"),
         });
-        foreach (var f in picked) if (f.TryGetLocalPath() is { } p) AddSource(p);
+        await AddPicked(picked);
+    }
+
+    private async Task AddPicked(IEnumerable<IStorageItem> picked)
+    {
+        bool bad = false;
+        foreach (var f in picked)
+        {
+            if (Platform.LocalPath(f) is { } p) AddSource(p);
+            else bad = true;
+        }
+        if (bad) await _main.Ask(L.T("android.badPick"));
     }
 
     private async Task PickFiles()
@@ -117,7 +139,7 @@ public partial class SendView : UserControl
         {
             AllowMultiple = true, Title = L.T("send.pickFiles"),
         });
-        foreach (var f in picked) if (f.TryGetLocalPath() is { } p) AddSource(p);
+        await AddPicked(picked);
     }
 
     // ---------------------------------------------------------------- receptores na rede
@@ -131,7 +153,7 @@ public partial class SendView : UserControl
         {
             // Este próprio computador (se também estiver recebendo) não entra na lista.
             var list = (await Discovery.FindAsync(TimeSpan.FromSeconds(1.2)))
-                .Where(r => !r.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase)).ToList();
+                .Where(r => !r.Name.Equals(Platform.DeviceName, StringComparison.OrdinalIgnoreCase)).ToList();
             var current = list.ToDictionary(r => r.Address);
             bool changed = current.Count != _found.Count || current.Keys.Any(k => !_found.ContainsKey(k));
             if (!changed && _searchedOnce) return;
@@ -205,15 +227,18 @@ public partial class SendView : UserControl
         var sources = _sources.ToList();
         var (host, port) = Target();
         var code = Code.Code;
-        if (sources.Count == 0) { await Dialogs.Show(_main, L.T("send.needSource")); return; }
-        if (host.Length == 0) { await Dialogs.Show(_main, L.T("send.needTarget")); return; }
-        if (code.Length != 6) { await Dialogs.Show(_main, L.T("send.needCode")); return; }
+        if (sources.Count == 0) { await _main.Ask(L.T("send.needSource")); return; }
+        if (host.Length == 0) { await _main.Ask(L.T("send.needTarget")); return; }
+        if (code.Length != 6) { await _main.Ask(L.T("send.needCode")); return; }
+
+        if (Platform.EnsureStorageAccess != null && !await Platform.EnsureStorageAccess()) return;
 
         var settings = _main.Settings;
         settings.LastHost = _selected == null ? (port == Protocol.DefaultPort ? host : $"{host}:{port}") : "";
         settings.Save();
 
         _cts = new CancellationTokenSource();
+        _main.Host.KeepAwake(true);
         var ct = _cts.Token;
         SendButton.Content = L.T("send.cancel");
         SendButton.Classes.Remove("accent");
@@ -237,6 +262,7 @@ public partial class SendView : UserControl
             _stats = stats;
             var sender = new Sender
             {
+                SenderName = Platform.DeviceName,
                 Host = host, Port = port, Code = code, Connections = Math.Clamp(settings.Connections, 1, 16),
                 Log = m => Dispatcher.UIThread.Post(() => Log(m)),
             };
@@ -248,7 +274,7 @@ public partial class SendView : UserControl
             Log(summary);
             StatusText.Text = summary;
             foreach (var e in result.Errors) Log(L.T("send.failLine", e));
-            if (result.FilesFailed > 0) await Dialogs.Show(_main, L.T("send.someFailed", result.FilesFailed));
+            if (result.FilesFailed > 0) await _main.Ask(L.T("send.someFailed", result.FilesFailed));
         }
         catch (Exception ex) when (ct.IsCancellationRequested)
         {
@@ -260,11 +286,12 @@ public partial class SendView : UserControl
         {
             Log(L.T("send.error", ex.Message));
             StatusText.Text = L.T("send.error", ex.Message);
-            await Dialogs.Show(_main, ex is SocketException ? L.T("send.connectFailed", host, port, ex.Message) : ex.Message, error: true);
+            await _main.Ask(ex is SocketException ? L.T("send.connectFailed", host, port, ex.Message) : ex.Message, error: true);
         }
         finally
         {
             _refresh.Stop();
+            _main.Host.KeepAwake(false);
             _cts.Dispose();
             _cts = null;
             SendButton.Content = L.T("send.send");
@@ -290,7 +317,7 @@ public partial class SendView : UserControl
     {
         if (_main.Busy)
         {
-            await Dialogs.Show(_main, L.T("busy.wait"));
+            await _main.Ask(L.T("busy.wait"));
             return;
         }
         var state = new Handoff
@@ -301,6 +328,6 @@ public partial class SendView : UserControl
             Connections = _main.Settings.Connections,
             Target = HostBox.Text ?? "",
         };
-        if (Platform.StartElevated(state)) _main.ExitApp();
+        if (Platform.StartElevated(state)) _main.Host.ExitApp();
     }
 }

@@ -5,11 +5,11 @@ namespace NetBackupTool;
 
 public partial class AboutView : UserControl
 {
-    private readonly MainWindow _main;
+    private readonly MainView _main;
 
     public AboutView() : this(null!) { } // designer
 
-    public AboutView(MainWindow main)
+    public AboutView(MainView main)
     {
         _main = main;
         InitializeComponent();
@@ -18,7 +18,7 @@ public partial class AboutView : UserControl
         ProjectButton.Click += (_, _) => Platform.OpenUrl(Updater.ProjectUrl);
         ReportsButton.Click += async (_, _) =>
         {
-            if (main.Settings.DestinationRoot.Length == 0) await Dialogs.Show(main, L.T("recv.noFolder"));
+            if (main.Settings.DestinationRoot.Length == 0) await main.Ask(L.T("recv.noFolder"));
             else Platform.OpenFolder(main.Settings.DestinationRoot);
         };
         UpdateButton.Click += async (_, _) => await CheckForUpdates();
@@ -34,7 +34,7 @@ public partial class AboutView : UserControl
     {
         if (_main.Busy)
         {
-            await Dialogs.Show(_main, L.T("busy.wait"));
+            await _main.Ask(L.T("busy.wait"));
             return;
         }
         UpdateButton.IsEnabled = false;
@@ -49,7 +49,7 @@ public partial class AboutView : UserControl
             catch (Exception ex)
             {
                 Status(null);
-                await Dialogs.Show(_main, L.T("upd.failed", ex.Message), error: true, title: L.T("upd.title"));
+                await _main.Ask(L.T("upd.failed", ex.Message), error: true, title: L.T("upd.title"));
                 return;
             }
 
@@ -57,17 +57,17 @@ public partial class AboutView : UserControl
             Status(null);
             if (latest.Version <= current)
             {
-                await Dialogs.Show(_main, L.T("upd.upToDate", current.ToString(3)), title: L.T("upd.title"));
+                await _main.Ask(L.T("upd.upToDate", current.ToString(3)), title: L.T("upd.title"));
                 return;
             }
             if (!Updater.CanSelfUpdate || latest.AssetUrl == null)
             {
                 var text = (latest.AssetUrl == null ? L.T("upd.noAsset", latest.Version.ToString(3)) : L.T("upd.manual", latest.Version.ToString(3), current.ToString(3)))
                            + "\n\n" + L.T("upd.openPage");
-                if (await Dialogs.Show(_main, text, yesNo: true, title: L.T("upd.title"))) Platform.OpenUrl(latest.HtmlUrl);
+                if (await _main.Ask(text, yesNo: true, title: L.T("upd.title"))) Platform.OpenUrl(latest.HtmlUrl);
                 return;
             }
-            if (!await Dialogs.Show(_main, L.T("upd.available", latest.Version.ToString(3), current.ToString(3)), yesNo: true, title: L.T("upd.title")))
+            if (!await _main.Ask(L.T("upd.available", latest.Version.ToString(3), current.ToString(3)), yesNo: true, title: L.T("upd.title")))
                 return;
 
             var newFile = Platform.Exe + ".new";
@@ -80,16 +80,16 @@ public partial class AboutView : UserControl
                     Status(L.T("upd.downloading", latest.Version.ToString(3), p));
                 });
                 await Updater.DownloadAsync(latest, newFile, progress, CancellationToken.None);
-                _main.ExitForUpdate(newFile);
+                _main.Host.ExitForUpdate(newFile);
             }
             catch (InvalidDataException ex)
             {
-                await Dialogs.Show(_main, ex.Message, error: true, title: L.T("upd.title"));
+                await _main.Ask(ex.Message, error: true, title: L.T("upd.title"));
             }
             catch (Exception ex)
             {
                 // Pasta sem permissão de escrita ou rede fora do ar.
-                if (await Dialogs.Show(_main, L.T("upd.cantReplace", ex.Message), yesNo: true, error: true, title: L.T("upd.title")))
+                if (await _main.Ask(L.T("upd.cantReplace", ex.Message), yesNo: true, error: true, title: L.T("upd.title")))
                     Platform.OpenUrl(latest.HtmlUrl);
             }
             finally

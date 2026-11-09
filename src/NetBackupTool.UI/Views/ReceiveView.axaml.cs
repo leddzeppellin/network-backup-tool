@@ -9,8 +9,9 @@ namespace NetBackupTool;
 
 public partial class ReceiveView : UserControl
 {
-    private readonly MainWindow _main;
+    private readonly MainView _main;
     private Receiver? _receiver;
+    private IDisposable? _multicast;
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly Dictionary<ReceiveSession, SessionRow> _rows = new();
     private readonly List<SessionRow> _finished = new();
@@ -48,11 +49,12 @@ public partial class ReceiveView : UserControl
 
     public ReceiveView() : this(null!) { } // designer
 
-    public ReceiveView(MainWindow main)
+    public ReceiveView(MainView main)
     {
         _main = main;
         InitializeComponent();
         if (main == null) return;
+        if (Platform.IsAndroid) SubtitleText.Text = L.T("mobile.recvSubtitle");
 
         ShowDestination();
         StartStopButton.Click += (_, _) => Toggle();
@@ -75,7 +77,7 @@ public partial class ReceiveView : UserControl
             UpdateEmptyState();
         };
         OpenButton.Click += (_, _) => Platform.OpenFolder(main.Settings.DestinationRoot);
-        if (Platform.IsWindows)
+        if (Platform.IsWindows && main.Host.IsDesktop)
         {
             FirewallButton.IsVisible = true;
             FirewallButton.Click += (_, _) =>
@@ -95,7 +97,7 @@ public partial class ReceiveView : UserControl
         var addrs = Discovery.LocalAddresses()
             .Where(a => !Discovery.IsVirtual(a.Interface))
             .Select(a => a.SpeedBps > 0 ? $"{a.Address}  ·  {a.Interface}, {a.SpeedBps / 1_000_000:N0} Mbps" : $"{a.Address}  ·  {a.Interface}");
-        MachineText.Text = string.Join(Environment.NewLine, addrs.Prepend(Environment.MachineName));
+        MachineText.Text = string.Join(Environment.NewLine, addrs.Prepend(Platform.DeviceName));
     }
 
     private void ShowCode()
@@ -129,7 +131,12 @@ public partial class ReceiveView : UserControl
         {
             Title = L.T("recv.pickDest"),
         });
-        if (picked.FirstOrDefault()?.TryGetLocalPath() is not { } path) return false;
+        if (picked.Count == 0) return false;
+        if (Platform.LocalPath(picked[0]) is not { } path)
+        {
+            await _main.Ask(L.T("android.badPick"));
+            return false;
+        }
         _main.Settings.DestinationRoot = path;
         _main.Settings.Save();
         if (_receiver != null) _receiver.DestinationRoot = path;
@@ -146,13 +153,21 @@ public partial class ReceiveView : UserControl
     {
         if (_receiver != null)
         {
-            if (Busy && !await Dialogs.Show(_main, L.T("busy.stop"), yesNo: true)) return;
+            if (Busy && !await _main.Ask(L.T("busy.stop"), yesNo: true)) return;
             StopReceiver();
             Log(L.T("recv.stopped"));
             return;
         }
 
         var settings = _main.Settings;
+        if (Platform.EnsureStorageAccess != null && !await Platform.EnsureStorageAccess()) return;
+        // No celular a pasta padrão é Download/NetBackupTool, sem precisar escolher.
+        if (settings.DestinationRoot.Length == 0 && Platform.IsAndroid && Platform.StorageRoot != null)
+        {
+            settings.DestinationRoot = Path.Combine(Platform.StorageRoot, "Download", "NetBackupTool");
+            settings.Save();
+            ShowDestination();
+        }
         // Primeiro uso (ou pasta que deixou de existir / ficou sem permissão): pede para escolher.
         while (true)
         {
@@ -168,20 +183,20 @@ public partial class ReceiveView : UserControl
             }
             catch (Exception ex)
             {
-                await Dialogs.Show(_main, L.T("recv.destError", ex.Message), error: true);
+                await _main.Ask(L.T("recv.destError", ex.Message), error: true);
                 settings.DestinationRoot = "";
                 ShowDestination();
             }
         }
 
-        var receiver = new Receiver { DestinationRoot = settings.DestinationRoot, FixedCode = settings.FixedCode.Length == 6 };
+        var receiver = new Receiver { DestinationRoot = settings.DestinationRoot, FixedCode = settings.FixedCode.Length == 6, Name = Platform.DeviceName };
         if (receiver.FixedCode) receiver.SetCode(settings.FixedCode);
         receiver.Log += m => Dispatcher.UIThread.Post(() => Log(m));
         receiver.CodeChanged += () => Dispatcher.UIThread.Post(ShowCode);
         receiver.SessionStarted += s => Dispatcher.UIThread.Post(() =>
         {
             RowFor(s);
-            _main.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.SenderName));
+            _main.Host.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.SenderName));
         });
         receiver.FileReceived += (_, path, size) =>
         {
@@ -195,10 +210,12 @@ public partial class ReceiveView : UserControl
         }
         catch (SocketException ex)
         {
-            await Dialogs.Show(_main, L.T("recv.portError", Protocol.DefaultPort, ex.Message), error: true);
+            await _main.Ask(L.T("recv.portError", Protocol.DefaultPort, ex.Message), error: true);
             return;
         }
         _receiver = receiver;
+        _multicast = Platform.AcquireMulticast?.Invoke();
+        _main.Host.KeepAwake(true);
         _refresh.Start();
         ShowCode();
         ShowMachine();
@@ -211,6 +228,9 @@ public partial class ReceiveView : UserControl
         _receiver.Stop();
         _receiver = null;
         _refresh.Stop();
+        _multicast?.Dispose();
+        _multicast = null;
+        _main.Host.KeepAwake(false);
         ShowCode();
     }
 
@@ -262,7 +282,7 @@ public partial class ReceiveView : UserControl
 
         Log(row.Text.Text);
         foreach (var e in r.Errors) Log(L.T("send.failLine", e));
-        _main.Notify(L.T("recv.notifyDoneTitle"), r.FilesFailed > 0
+        _main.Host.Notify(L.T("recv.notifyDoneTitle"), r.FilesFailed > 0
             ? L.T("recv.notifyDoneFail", s.SenderName, r.FilesOk, r.FilesFailed)
             : L.T("recv.notifyDone", s.SenderName, r.FilesOk));
     }

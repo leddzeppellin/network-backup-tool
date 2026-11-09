@@ -8,16 +8,14 @@ using Nbt.Core;
 
 namespace NetBackupTool;
 
-public partial class MainWindow : Window
+/// <summary>Janela do programa de desktop: hospeda a MainView e cuida da bandeja e do fechar/reabrir.</summary>
+public partial class MainWindow : Window, IAppHost
 {
-    public static WindowIcon AppIcon { get; } = new(AssetLoader.Open(new Uri("avares://NetBackupTool/Assets/icon.ico")));
-    public static Bitmap AppBitmap { get; } = new(AssetLoader.Open(new Uri("avares://NetBackupTool/Assets/icon.png")));
+    public static WindowIcon AppIcon { get; } = new(AssetLoader.Open(new Uri("avares://NetBackupTool.UI/Assets/icon.ico")));
+    public static Bitmap AppBitmap { get; } = new(AssetLoader.Open(new Uri("avares://NetBackupTool.UI/Assets/icon.png")));
 
-    public Settings Settings => App.Settings;
-    public SendView SendPage { get; }
-    public ReceiveView ReceivePage { get; }
-    private readonly SettingsView _settingsPage;
-    private readonly AboutView _aboutPage;
+    public MainView View { get; }
+    private Settings Settings => App.Settings;
 
     private readonly TrayIcon _tray = new();
     private readonly NativeMenuItem _trayToggle = new();
@@ -30,51 +28,74 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         if (ShadowCopies.IsElevated && Platform.IsWindows) Title = L.T("app.admin");
-
-        SendPage = new SendView(this, options.Handoff);
-        ReceivePage = new ReceiveView(this);
-        _settingsPage = new SettingsView(this);
-        _aboutPage = new AboutView(this);
-
-        NavSend.Click += (_, _) => Navigate(SendPage, NavSend);
-        NavReceive.Click += (_, _) => Navigate(ReceivePage, NavReceive);
-        NavSettings.Click += (_, _) => Navigate(_settingsPage, NavSettings);
-        NavAbout.Click += (_, _) => Navigate(_aboutPage, NavAbout);
-        Navigate(options.Receive ? ReceivePage : SendPage, options.Receive ? NavReceive : NavSend);
+        View = new MainView(this, options);
+        Content = View;
 
         SetupTray();
-        ReceivePage.ReceivingChanged += receiving =>
+        View.ReceivingChanged += receiving =>
         {
-            ReceivingDot.IsVisible = receiving;
             _trayToggle.Header = L.T(receiving ? "recv.stop" : "recv.start");
-            _tray.ToolTipText = Trim(receiving ? L.T("tray.receiving", ReceivePage.CurrentCode) : L.T("tray.stopped"));
+            var tip = receiving ? L.T("tray.receiving", View.ReceivePage.CurrentCode) : L.T("tray.stopped");
+            _tray.ToolTipText = tip.Length > 120 ? tip[..120] : tip;
         };
-        if (options.Receive) Opened += (_, _) => ReceivePage.EnsureReceiving();
-    }
-
-    private static string Trim(string s) => s.Length > 120 ? s[..120] : s;
-
-    private void Navigate(Control page, Button nav)
-    {
-        Host.Content = page;
-        foreach (var b in new[] { NavSend, NavReceive, NavSettings, NavAbout }) b.Classes.Set("active", b == nav);
+        if (options.Receive) Opened += (_, _) => View.ReceivePage.EnsureReceiving();
     }
 
     /// <summary>Iniciado com o sistema: sem janela, só o ícone da bandeja, já recebendo.</summary>
     public void StartHidden()
     {
-        Navigate(ReceivePage, NavReceive);
-        if (Settings.DestinationRoot.Length == 0) ShowFromBackground();
-        ReceivePage.EnsureReceiving();
+        View.ShowReceivePage();
+        if (Settings.DestinationRoot.Length == 0) ShowWindow();
+        View.ReceivePage.EnsureReceiving();
     }
 
-    public void ShowFromBackground()
+    // ---------------------------------------------------------------- IAppHost
+
+    public bool IsDesktop => true;
+
+    public void ShowWindow()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d && d.MainWindow == null)
             d.MainWindow = this;
-        Show();
+        if (!IsVisible) Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
+    }
+
+    /// <summary>Aviso no canto da tela quando a janela não está à vista.</summary>
+    public void Notify(string title, string text)
+    {
+        if (IsVisible && IsActive) return;
+        Toast.Show(title, text, ShowWindow);
+    }
+
+    public void SetTrayVisible(bool visible) => _tray.IsVisible = visible;
+
+    public void KeepAwake(bool on) { }
+
+    /// <summary>Reabre o programa (troca de idioma), mantendo a recepção se estava ligada.</summary>
+    public void Restart()
+    {
+        var psi = new ProcessStartInfo(Platform.Exe) { UseShellExecute = false };
+        psi.ArgumentList.Add("--reiniciar");
+        if (View.ReceivePage.IsReceiving) psi.ArgumentList.Add("receber");
+        View.ReceivePage.StopReceiver();
+        Process.Start(psi);
+        ExitApp();
+    }
+
+    /// <summary>Fecha para o executável novo concluir a atualização.</summary>
+    public void ExitForUpdate(string newFile)
+    {
+        Updater.StartFinish(newFile, View.ReceivePage.IsReceiving);
+        ExitApp();
+    }
+
+    public void ExitApp()
+    {
+        _exiting = true;
+        Close();
+        Shutdown();
     }
 
     // ---------------------------------------------------------------- bandeja
@@ -84,45 +105,34 @@ public partial class MainWindow : Window
         _tray.Icon = AppIcon;
         _tray.ToolTipText = L.T("tray.stopped");
         var open = new NativeMenuItem(L.T("tray.open"));
-        open.Click += (_, _) => ShowFromBackground();
+        open.Click += (_, _) => ShowWindow();
         _trayToggle.Header = L.T("recv.start");
-        _trayToggle.Click += (_, _) => ReceivePage.Toggle();
+        _trayToggle.Click += (_, _) => View.ReceivePage.Toggle();
         var exit = new NativeMenuItem(L.T("tray.exit"));
         exit.Click += (_, _) => ExitApp();
         _tray.Menu = new NativeMenu { Items = { open, _trayToggle, new NativeMenuItemSeparator(), exit } };
-        _tray.Clicked += (_, _) => ShowFromBackground();
+        _tray.Clicked += (_, _) => ShowWindow();
         _tray.IsVisible = Settings.KeepInTray;
         TrayIcon.SetIcons(Application.Current!, new TrayIcons { _tray });
     }
 
-    public void SetTrayVisible(bool visible) => _tray.IsVisible = visible;
-
-    /// <summary>Aviso no canto da tela quando a janela não está à vista.</summary>
-    public void Notify(string title, string text)
-    {
-        if (IsVisible && IsActive) return;
-        Toast.Show(title, text, ShowFromBackground);
-    }
-
-    // ---------------------------------------------------------------- fechar, sair, reabrir
-
-    public bool Busy => SendPage.Busy || ReceivePage.Busy;
+    // ---------------------------------------------------------------- fechar
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         // Modo persistente: o X só esconde a janela; a recepção segue com o ícone perto do relógio.
-        if (!_exiting && Settings.KeepInTray && ReceivePage.IsReceiving && !SendPage.Busy)
+        if (!_exiting && Settings.KeepInTray && View.ReceivePage.IsReceiving && !View.SendPage.Busy)
         {
             e.Cancel = true;
             Hide();
             if (!_trayHintShown)
             {
                 _trayHintShown = true;
-                Toast.Show(L.T("tray.keepsTitle"), L.T("tray.keepsText"), ShowFromBackground);
+                Toast.Show(L.T("tray.keepsTitle"), L.T("tray.keepsText"), ShowWindow);
             }
             return;
         }
-        if (!_exiting && Busy)
+        if (!_exiting && View.Busy)
         {
             e.Cancel = true;
             _ = ConfirmExit();
@@ -134,39 +144,14 @@ public partial class MainWindow : Window
 
     private async Task ConfirmExit()
     {
-        if (await Dialogs.Show(this, L.T("busy.close"), yesNo: true)) ExitApp();
-    }
-
-    public void ExitApp()
-    {
-        _exiting = true;
-        Close();
-        Shutdown();
+        if (await View.Ask(L.T("busy.close"), yesNo: true)) ExitApp();
     }
 
     private void Shutdown()
     {
-        SendPage.CancelSend();
-        ReceivePage.StopReceiver();
+        View.SendPage.CancelSend();
+        View.ReceivePage.StopReceiver();
         _tray.IsVisible = false;
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
-    }
-
-    /// <summary>Reabre o programa (troca de idioma), mantendo a recepção se estava ligada.</summary>
-    public void Restart()
-    {
-        var psi = new ProcessStartInfo(Platform.Exe) { UseShellExecute = false };
-        psi.ArgumentList.Add("--reiniciar");
-        if (ReceivePage.IsReceiving) psi.ArgumentList.Add("receber");
-        ReceivePage.StopReceiver();
-        Process.Start(psi);
-        ExitApp();
-    }
-
-    /// <summary>Fecha para o executável novo concluir a atualização.</summary>
-    public void ExitForUpdate(string newFile)
-    {
-        Updater.StartFinish(newFile, ReceivePage.IsReceiving);
-        ExitApp();
     }
 }

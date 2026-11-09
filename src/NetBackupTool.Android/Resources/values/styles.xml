@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="NbtTheme" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowActionBar">false</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="colorPrimary">#0E64B4</item>
+    <item name="colorAccent">#2F86D6</item>
+  </style>
+</resources>

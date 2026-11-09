@@ -296,14 +296,49 @@ public sealed class Receiver : IDisposable
             needFiles++;
         }
 
-        var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(session.BaseDir))!);
-        if (drive.IsReady && needBytes - reclaim > drive.AvailableFreeSpace)
-            throw new IOException(L.T("recv.noSpace", Format.Bytes(needBytes - reclaim), Format.Bytes(drive.AvailableFreeSpace)));
+        if (FreeSpace(session.BaseDir) is { } free && needBytes - reclaim > free)
+            throw new IOException(L.T("recv.noSpace", Format.Bytes(needBytes - reclaim), Format.Bytes(free)));
 
         session.Files = files;
         session.Stats.TotalBytes = needBytes;
         session.Stats.TotalFiles = needFiles;
         return bitset;
+    }
+
+    /// <summary>
+    /// Espaço livre do disco onde a pasta fica. No Linux/Android/macOS a raiz "/" é outro sistema de
+    /// arquivos (no Android, 166 MB livres contra 93 GB em /storage/emulated): vale o ponto de
+    /// montagem mais específico que contém o caminho. null se não der para saber.
+    /// </summary>
+    private static long? FreeSpace(string path)
+    {
+        var full = Path.GetFullPath(path);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        DriveInfo? best = null;
+        int bestLength = -1;
+        try
+        {
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    var root = d.RootDirectory.FullName;
+                    var prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+                    bool contains = full.StartsWith(prefix, comparison) || string.Equals(full, root, comparison);
+                    if (contains && root.Length > bestLength && d.IsReady)
+                    {
+                        best = d;
+                        bestLength = root.Length;
+                    }
+                }
+                catch { /* ponto de montagem sem acesso */ }
+            }
+            return best?.AvailableFreeSpace;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void HandleData(BinaryReader r, BinaryWriter w)

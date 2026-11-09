@@ -1,9 +1,10 @@
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using Nbt.Core;
 
 namespace NetBackupTool;
-
-public sealed record StartOptions(bool Receive = false, bool Hidden = false, Handoff? Handoff = null, Exception? FinishError = null);
 
 static class Program
 {
@@ -33,7 +34,38 @@ static class Program
         // "receber" abre direto na recepção; "--bandeja" inicia escondido (usado ao iniciar com o sistema).
         App.Settings = settings;
         App.Options = new StartOptions(Has("receber"), Has("bandeja") && settings.KeepInTray, handoff, finishError);
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, Avalonia.Controls.ShutdownMode.OnExplicitShutdown);
+        App.Startup = Start;
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+    }
+
+    private static void Start(Application app, IApplicationLifetime? lifetime)
+    {
+        if (lifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
+        var options = App.Options;
+
+        if (options.FinishError is { } error)
+        {
+            // A troca do executável falhou: avisa e oferece a página de download.
+            var dlg = Dialogs.Create(L.T("upd.cantReplace", error.Message), L.T("upd.title"), yesNo: true);
+            dlg.Closed += (_, _) =>
+            {
+                if (dlg.Result) Platform.OpenUrl(Updater.ProjectUrl + "/releases/latest");
+                desktop.Shutdown();
+            };
+            dlg.Show();
+            return;
+        }
+
+        var window = new MainWindow(options);
+        if (!options.Hidden) desktop.MainWindow = window;
+        else window.StartHidden();
+        SingleInstance.Listen(() => Dispatcher.UIThread.Post(window.ShowWindow));
+        // macOS: clicar no ícone do Dock com a janela escondida volta a mostrá-la.
+        if (app.TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable)
+            activatable.Activated += (_, e) =>
+            {
+                if (e.Kind == ActivationKind.Reopen) window.ShowWindow();
+            };
     }
 
     // Usado também pelo designer do Avalonia.

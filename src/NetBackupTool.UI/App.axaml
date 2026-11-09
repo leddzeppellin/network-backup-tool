@@ -56,6 +56,6 @@
         <ColorPaletteResources x:Key="Dark" Accent="#2F86D6" RegionColor="#24272C" />
       </FluentTheme.Palettes>
     </FluentTheme>
-    <StyleInclude Source="avares://NetBackupTool/Styles.axaml" />
+    <StyleInclude Source="avares://NetBackupTool.UI/Styles.axaml" />
   </Application.Styles>
 </Application>

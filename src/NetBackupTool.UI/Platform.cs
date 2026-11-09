@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using Avalonia.Platform.Storage;
 using Microsoft.Win32;
 using Nbt.Core;
 
@@ -9,6 +10,40 @@ namespace NetBackupTool;
 public static class Platform
 {
     public static bool IsWindows => OperatingSystem.IsWindows();
+    public static bool IsAndroid => OperatingSystem.IsAndroid();
+
+    // ---- preenchidos pelo app Android (no desktop ficam com o padrão)
+
+    /// <summary>Nome mostrado aos outros computadores. No Android o .NET devolve "localhost": o app troca pelo modelo.</summary>
+    public static string DeviceName { get; set; } = Environment.MachineName;
+    /// <summary>Android: raiz do armazenamento (/storage/emulated/0).</summary>
+    public static string? StorageRoot { get; set; }
+    /// <summary>Android: garante "Acesso a todos os arquivos"; false se o usuário ainda precisa conceder.</summary>
+    public static Func<Task<bool>>? EnsureStorageAccess { get; set; }
+    /// <summary>Android: libera o recebimento de broadcast no Wi-Fi enquanto o objeto estiver vivo.</summary>
+    public static Func<IDisposable>? AcquireMulticast { get; set; }
+    public static Action<string>? OpenUrlHook { get; set; }
+    public static Action<string>? OpenFolderHook { get; set; }
+
+    /// <summary>
+    /// Caminho local de um item escolhido no seletor. No Android o seletor devolve endereços
+    /// content://com.android.externalstorage.documents/... que viram /storage/emulated/0/...
+    /// </summary>
+    public static string? LocalPath(Avalonia.Platform.Storage.IStorageItem item)
+    {
+        if (item.TryGetLocalPath() is { } local) return local;
+        var uri = item.Path;
+        if (uri.Scheme != "content" || uri.Host != "com.android.externalstorage.documents") return null;
+        var path = Uri.UnescapeDataString(uri.AbsolutePath);
+        var marker = path.LastIndexOf("/document/", StringComparison.Ordinal);
+        var id = marker >= 0 ? path[(marker + "/document/".Length)..]
+            : path.StartsWith("/tree/", StringComparison.Ordinal) ? path["/tree/".Length..] : null;
+        if (id == null || id.IndexOf(':') is var colon && colon < 0) return null;
+        var volume = id[..colon];
+        var rel = id[(colon + 1)..];
+        var root = volume == "primary" ? StorageRoot ?? "/storage/emulated/0" : "/storage/" + volume;
+        return rel.Length == 0 ? root : Path.Combine(root, rel);
+    }
     public static bool IsMac => OperatingSystem.IsMacOS();
     public static string Exe => Environment.ProcessPath!;
     private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -16,6 +51,13 @@ public static class Platform
     /// <summary>Área de Trabalho, Documentos, Imagens, Músicas, Vídeos, Downloads (e Favoritos no Windows).</summary>
     public static List<string> UserFolders()
     {
+        if (IsAndroid && StorageRoot != null)
+        {
+            // Fotos da câmera, imagens, documentos, downloads, vídeos, músicas e as mídias do WhatsApp.
+            string[] android = ["DCIM", "Pictures", "Documents", "Download", "Movies", "Music",
+                Path.Combine("Android", "media", "com.whatsapp", "WhatsApp", "Media")];
+            return android.Select(n => Path.Combine(StorageRoot, n)).Where(Directory.Exists).ToList();
+        }
         if (IsWindows)
         {
             Environment.SpecialFolder[] folders =
@@ -38,12 +80,22 @@ public static class Platform
     public static void OpenFolder(string path)
     {
         Directory.CreateDirectory(path);
+        if (OpenFolderHook != null)
+        {
+            OpenFolderHook(path);
+            return;
+        }
         if (IsWindows) Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
         else Process.Start(IsMac ? "open" : "xdg-open", path);
     }
 
     public static void OpenUrl(string url)
     {
+        if (OpenUrlHook != null)
+        {
+            OpenUrlHook(url);
+            return;
+        }
         if (IsWindows) Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         else Process.Start(IsMac ? "open" : "xdg-open", url);
     }

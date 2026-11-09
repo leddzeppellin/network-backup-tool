@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.MainView"
+             Background="{DynamicResource PageBg}">
+  <Grid x:Name="Root" ColumnDefinitions="210,*" RowDefinitions="*,Auto">
+
+    <!-- Barra lateral (telas largas) -->
+    <Border x:Name="Sidebar" Grid.RowSpan="2" Background="{DynamicResource SideBg}">
+      <DockPanel Margin="12,16">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="8,0,0,24">
+          <Image Source="/Assets/icon.png" Width="30" Height="30" />
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="Network" FontWeight="SemiBold" FontSize="13" />
+            <TextBlock Text="Backup Tool" FontWeight="SemiBold" FontSize="13" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Spacing="2">
+          <Button x:Name="NavSettings" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconSettings}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.settings}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavAbout" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconInfo}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.about}" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel Spacing="2">
+          <Button x:Name="NavSend" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconUpload}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.send}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavReceive" Classes="nav">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconDownload}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.receive}" />
+              <Ellipse x:Name="ReceivingDot" Classes="dot on" Width="8" Height="8" IsVisible="False" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <ContentControl x:Name="PageHost" Grid.Column="1" />
+
+    <!-- Abas embaixo (telas estreitas: celular) -->
+    <Border x:Name="BottomBar" Grid.Row="1" Grid.ColumnSpan="2" IsVisible="False"
+            Background="{DynamicResource SideBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,1,0,0">
+      <UniformGrid Columns="4" Margin="4,4,4,6">
+        <Button x:Name="TabSend" Classes="tab">
+          <StackPanel Spacing="3" HorizontalAlignment="Center">
+            <PathIcon Data="{StaticResource IconUpload}" Width="20" Height="20" />
+            <TextBlock Text="{l:T nav.send}" FontSize="11" HorizontalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="TabReceive" Classes="tab">
+          <StackPanel Spacing="3" HorizontalAlignment="Center">
+            <PathIcon Data="{StaticResource IconDownload}" Width="20" Height="20" />
+            <TextBlock Text="{l:T nav.receive}" FontSize="11" HorizontalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="TabSettings" Classes="tab">
+          <StackPanel Spacing="3" HorizontalAlignment="Center">
+            <PathIcon Data="{StaticResource IconSettings}" Width="20" Height="20" />
+            <TextBlock Text="{l:T nav.settings}" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="TabAbout" Classes="tab">
+          <StackPanel Spacing="3" HorizontalAlignment="Center">
+            <PathIcon Data="{StaticResource IconInfo}" Width="20" Height="20" />
+            <TextBlock Text="{l:T nav.about}" FontSize="11" HorizontalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </UniformGrid>
+    </Border>
+
+    <!-- Caixa de mensagem sobre a própria tela (funciona igual no desktop e no celular) -->
+    <Border x:Name="Overlay" Grid.ColumnSpan="2" Grid.RowSpan="2" IsVisible="False" Background="#99000000">
+      <Border Classes="card" MaxWidth="480" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="22,20">
+        <StackPanel Spacing="20">
+          <DockPanel>
+            <PathIcon x:Name="OverlayIcon" DockPanel.Dock="Left" Width="26" Height="26" VerticalAlignment="Top" Margin="0,0,14,0" />
+            <SelectableTextBlock x:Name="OverlayText" TextWrapping="Wrap" />
+          </DockPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button x:Name="OverlayYes" Classes="accent" MinWidth="96" HorizontalContentAlignment="Center" />
+            <Button x:Name="OverlayNo" MinWidth="96" HorizontalContentAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

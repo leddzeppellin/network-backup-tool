@@ -10,7 +10,7 @@ public partial class SettingsView : UserControl
 
     public SettingsView() : this(null!) { } // designer
 
-    public SettingsView(MainWindow main)
+    public SettingsView(MainView main)
     {
         InitializeComponent();
         if (main == null) return;
@@ -27,10 +27,10 @@ public partial class SettingsView : UserControl
             L.Set(code);
             if (main.Busy)
             {
-                await Dialogs.Show(main, L.T("busy.wait"));
+                await main.Ask(L.T("busy.wait"));
                 return;
             }
-            if (await Dialogs.Show(main, L.T("menu.langChanged"), yesNo: true)) main.Restart();
+            if (await main.Ask(L.T("menu.langChanged"), yesNo: true)) main.Host.Restart();
         };
 
         ThemeBox.ItemsSource = new[] { L.T("set.themeSystem"), L.T("set.themeLight"), L.T("set.themeDark") };
@@ -42,6 +42,7 @@ public partial class SettingsView : UserControl
             App.ApplyTheme(s.Theme);
         };
 
+        TrayRow.IsVisible = AutostartRow.IsVisible = PersistentHint.IsVisible = main.Host.IsDesktop;
         TraySwitch.IsChecked = s.KeepInTray;
         AutostartSwitch.IsChecked = Platform.IsAutostart();
         FixedSwitch.IsChecked = s.FixedCode.Length == 6;
@@ -49,7 +50,7 @@ public partial class SettingsView : UserControl
         {
             s.KeepInTray = TraySwitch.IsChecked == true;
             s.Save();
-            main.SetTrayVisible(s.KeepInTray);
+            main.Host.SetTrayVisible(s.KeepInTray);
             if (!s.KeepInTray && AutostartSwitch.IsChecked == true) AutostartSwitch.IsChecked = false;
         };
         AutostartSwitch.IsCheckedChanged += (_, _) =>
@@ -61,7 +62,7 @@ public partial class SettingsView : UserControl
             }
             catch (Exception ex)
             {
-                _ = Dialogs.Show(main, ex.Message, error: true);
+                _ = main.Ask(ex.Message, error: true);
             }
             // Iniciar escondido só faz sentido com o ícone perto do relógio.
             if (on && TraySwitch.IsChecked != true) TraySwitch.IsChecked = true;

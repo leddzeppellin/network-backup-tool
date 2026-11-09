@@ -25,12 +25,13 @@ public static class Updater
 
     /// <summary>Nome do arquivo deste sistema na release.</summary>
     public static string AssetName =>
-        OperatingSystem.IsWindows() ? "NetBackupTool.exe"
+        OperatingSystem.IsAndroid() ? "NetBackupTool-android.apk"
+        : OperatingSystem.IsWindows() ? "NetBackupTool.exe"
         : OperatingSystem.IsMacOS() ? $"NetBackupTool-macos-{(RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64")}.zip"
         : $"NetBackupTool-linux-{(RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64")}";
 
     /// <summary>No macOS o programa é um pacote .app; a troca é feita baixando o pacote novo.</summary>
-    public static bool CanSelfUpdate => !OperatingSystem.IsMacOS();
+    public static bool CanSelfUpdate => !OperatingSystem.IsMacOS() && !OperatingSystem.IsAndroid();
 
     private static readonly HttpClient Http = CreateClient();
 

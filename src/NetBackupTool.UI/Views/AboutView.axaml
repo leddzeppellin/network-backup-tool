@@ -3,14 +3,14 @@
              xmlns:l="using:NetBackupTool"
              x:Class="NetBackupTool.AboutView">
   <ScrollViewer>
-    <StackPanel Margin="32,28" Spacing="16" MaxWidth="760">
+    <StackPanel Classes="page" Spacing="16" MaxWidth="760">
       <TextBlock Classes="h1" Text="{l:T nav.about}" />
 
       <Border Classes="card" Padding="22,20">
         <DockPanel>
-          <Image DockPanel.Dock="Left" Source="/Assets/icon.png" Width="84" Height="84" Margin="0,0,20,0" VerticalAlignment="Top" />
+          <Image Classes="aboutIcon" Source="/Assets/icon.png" Width="84" Height="84" VerticalAlignment="Top" />
           <StackPanel Spacing="6">
-            <TextBlock Text="Network Backup Tool" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock Text="Network Backup Tool" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
             <TextBlock x:Name="VersionText" Classes="muted" />
             <TextBlock Text="{l:T about.desc}" TextWrapping="Wrap" />
             <TextBlock Classes="caption" Text="{l:T about.license}" />

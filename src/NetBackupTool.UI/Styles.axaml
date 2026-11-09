@@ -20,13 +20,16 @@
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="TextBlock.h2">
+    <Setter Property="TextWrapping" Value="Wrap" />
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="TextBlock.muted">
+    <Setter Property="TextWrapping" Value="Wrap" />
     <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
   </Style>
   <Style Selector="TextBlock.caption">
+    <Setter Property="TextWrapping" Value="Wrap" />
     <Setter Property="FontSize" Value="12" />
     <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
   </Style>
@@ -51,6 +54,89 @@
   <Style Selector="Button.nav.active /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavActiveBg}" />
     <Setter Property="Foreground" Value="{DynamicResource NavActiveFg}" />
+  </Style>
+
+  <!-- Abas de baixo (celular) -->
+  <Style Selector="Button.tab">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="4,6" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
+  </Style>
+  <Style Selector="Button.tab.active">
+    <Setter Property="Foreground" Value="{DynamicResource NavActiveFg}" />
+  </Style>
+  <Style Selector="Button.tab.active /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavActiveBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavActiveFg}" />
+  </Style>
+
+  <!-- Margem das telas (no XAML não pode ter Margin local, senão o estilo do celular não vale) -->
+  <Style Selector="StackPanel.page">
+    <Setter Property="Margin" Value="32,28" />
+  </Style>
+  <!-- Celular: menos margem em volta das telas -->
+  <Style Selector=".compact StackPanel.page">
+    <Setter Property="Margin" Value="14,14" />
+  </Style>
+  <Style Selector=".compact TextBlock.h1">
+    <Setter Property="FontSize" Value="20" />
+  </Style>
+
+  <!-- Controles ao lado do texto: no celular descem para baixo dele -->
+  <Style Selector="StackPanel.sideCol">
+    <Setter Property="DockPanel.Dock" Value="Right" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="Margin" Value="12,0,0,0" />
+  </Style>
+  <Style Selector=".compact StackPanel.sideCol">
+    <Setter Property="DockPanel.Dock" Value="Bottom" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Margin" Value="0,14,0,0" />
+  </Style>
+  <Style Selector="ComboBox.setting">
+    <Setter Property="DockPanel.Dock" Value="Right" />
+    <Setter Property="Width" Value="280" />
+  </Style>
+  <Style Selector=".compact ComboBox.setting">
+    <Setter Property="DockPanel.Dock" Value="Bottom" />
+    <Setter Property="Width" Value="NaN" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Margin" Value="0,8,0,0" />
+  </Style>
+  <Style Selector="NumericUpDown.setting">
+    <Setter Property="DockPanel.Dock" Value="Right" />
+    <Setter Property="Width" Value="140" />
+  </Style>
+  <Style Selector="Image.aboutIcon">
+    <Setter Property="DockPanel.Dock" Value="Left" />
+    <Setter Property="Margin" Value="0,0,20,0" />
+  </Style>
+  <Style Selector=".compact Image.aboutIcon">
+    <Setter Property="DockPanel.Dock" Value="Top" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Width" Value="64" />
+    <Setter Property="Height" Value="64" />
+    <Setter Property="Margin" Value="0,0,0,12" />
+  </Style>
+  <Style Selector=".compact NumericUpDown.setting">
+    <Setter Property="DockPanel.Dock" Value="Bottom" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Margin" Value="0,8,0,0" />
+  </Style>
+
+  <Style Selector=".compact TextBox.digit">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="48" />
+  </Style>
+
+  <Style Selector="StackPanel.codebox">
+    <Setter Property="Spacing" Value="8" />
+  </Style>
+  <Style Selector=".compact StackPanel.codebox">
+    <Setter Property="Spacing" Value="5" />
   </Style>
 
   <!-- Botões em geral um pouco mais arredondados -->
@@ -117,6 +203,7 @@
 
   <!-- Caixas do código de 6 dígitos -->
   <Style Selector="TextBox.digit">
+    <Setter Property="MinWidth" Value="0" />
     <Setter Property="Width" Value="44" />
     <Setter Property="Height" Value="50" />
     <Setter Property="FontSize" Value="22" />
