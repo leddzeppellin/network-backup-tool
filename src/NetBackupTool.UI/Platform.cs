@@ -18,6 +18,11 @@ public static class Platform
     public static string DeviceName { get; set; } = Environment.MachineName;
     /// <summary>Android: raiz do armazenamento (/storage/emulated/0).</summary>
     public static string? StorageRoot { get; set; }
+    /// <summary>
+    /// Versão da Play Store: a política do Google proíbe apontar para outra fonte de atualização,
+    /// então "Verificar atualizações" some (a própria loja atualiza o app).
+    /// </summary>
+    public static bool UpdatesByStore { get; set; }
     /// <summary>Android: garante "Acesso a todos os arquivos"; false se o usuário ainda precisa conceder.</summary>
     public static Func<Task<bool>>? EnsureStorageAccess { get; set; }
     /// <summary>Android: libera o recebimento de broadcast no Wi-Fi enquanto o objeto estiver vivo.</summary>

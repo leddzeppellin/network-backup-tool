@@ -155,6 +155,7 @@ de Windows passa a ser assinado gratuitamente pela [SignPath Foundation](https:/
 com certificado fornecido pela [SignPath.io](https://about.signpath.io).
 
 - Autor, revisor e aprovador das versões: [Ricardo Valério da Silva](https://github.com/leddzeppellin)
+- Política de privacidade completa: [docs/privacidade.md](docs/privacidade.md).
 - Privacidade: o programa não envia dados a nenhum serviço externo; só conversa com o outro
   computador da rede local que você indicar e, quando você clica em "Verificar atualizações",
   consulta as releases deste repositório no GitHub.

@@ -34,6 +34,9 @@ public class MainActivity : AvaloniaMainActivity<App>, IAppHost
         App.Settings = NetBackupTool.Settings.Load();
         L.Set(App.Settings.Language);
         Platform.DeviceName = DeviceName();
+#if PLAYSTORE
+        Platform.UpdatesByStore = true;
+#endif
         Platform.StorageRoot = AndroidEnv.ExternalStorageDirectory?.AbsolutePath ?? "/storage/emulated/0";
         Platform.EnsureStorageAccess = EnsureStorageAccess;
         Platform.AcquireMulticast = AcquireMulticast;

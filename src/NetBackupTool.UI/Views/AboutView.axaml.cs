@@ -22,6 +22,7 @@ public partial class AboutView : UserControl
             else Platform.OpenFolder(main.Settings.DestinationRoot);
         };
         UpdateButton.Click += async (_, _) => await CheckForUpdates();
+        UpdateButton.IsVisible = !Platform.UpdatesByStore;
     }
 
     private void Status(string? text)
