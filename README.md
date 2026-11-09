@@ -39,8 +39,13 @@ combinação.
 
 Na primeira vez que você inicia a recepção, o programa pede a pasta onde salvar e passa a lembrar
 dela (dá para trocar em **Receber → Escolher**).
-Os arquivos chegam em `<pasta de destino>/<nome do PC do cliente>/C/Users/...`, espelhando o
-caminho original. Ao fim, um `_NBT_relatorio_<data>.txt` fica junto, com o que foi copiado e o que falhou.
+Os arquivos chegam em `<pasta de destino>/<nome do PC do cliente>/`, cada item escolhido pelo
+próprio nome (`Documentos/...`, `relatorio.txt`). Marcando **Manter o caminho completo de origem**
+na tela Enviar, chegam espelhando o caminho original (`C/Users/joao/Documentos/...`).
+Ao fim, um `_NBT_relatorio_<data>.txt` fica junto, com o que foi copiado e o que falhou.
+Na tela Receber, cada cópia mostra o arquivo que está chegando, a barra de progresso e o tempo
+restante, e continua listada com o resumo depois de terminar; a **Atividade** mostra cada arquivo
+grande recebido e as falhas.
 
 ### Primeira abertura em cada sistema
 

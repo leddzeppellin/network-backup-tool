@@ -63,7 +63,16 @@ public partial class SendView : UserControl
             ReopenAdmin.Click += (_, _) => ReopenElevated();
         }
 
-        if (main != null) HostBox.Text = main.Settings.LastHost;
+        if (main != null)
+        {
+            HostBox.Text = main.Settings.LastHost;
+            FullPathsBox.IsChecked = main.Settings.FullPaths;
+            FullPathsBox.IsCheckedChanged += (_, _) =>
+            {
+                main.Settings.FullPaths = FullPathsBox.IsChecked == true;
+                main.Settings.Save();
+            };
+        }
         if (handoff != null)
         {
             // Reaberto como administrador: mantém a lista e as pastas do usuário original
@@ -217,8 +226,9 @@ public partial class SendView : UserControl
         {
             Log(L.T("send.listing"));
             var excludes = settings.Excludes;
+            var fullPaths = settings.FullPaths;
             var scan = await Task.Run(() => Manifest.Scan(sources, excludes, ct,
-                n => Dispatcher.UIThread.Post(() => StatusText.Text = L.T("send.listingN", n))), ct);
+                n => Dispatcher.UIThread.Post(() => StatusText.Text = L.T("send.listingN", n)), fullPaths), ct);
             foreach (var w in scan.Warnings) Log(L.T("send.warning", w));
             if (scan.CloudOnlySkipped > 0) Log(L.T("send.cloudOnly", scan.CloudOnlySkipped));
             Log(L.T("send.scanned", scan.FileCount, Format.Bytes(scan.TotalBytes)));

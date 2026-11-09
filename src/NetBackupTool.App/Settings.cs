@@ -11,6 +11,8 @@ public sealed class Settings
     public int Connections { get; set; } = 4;
     public string Excludes { get; set; } = Manifest.DefaultExcludes;
     public string LastHost { get; set; } = "";
+    /// <summary>Espelhar o caminho completo de origem (C\Users\...) em vez de só o item escolhido.</summary>
+    public bool FullPaths { get; set; }
     /// <summary>Fechar a janela deixa o programa recebendo, com ícone perto do relógio.</summary>
     public bool KeepInTray { get; set; }
     /// <summary>Código que não muda entre usos; vazio = código novo a cada início.</summary>
@@ -20,8 +22,11 @@ public sealed class Settings
     /// <summary>"system", "light" ou "dark".</summary>
     public string Theme { get; set; } = "system";
 
+    // NBT_CONFIG_DIR aponta para outra pasta de configurações (testes sem tocar nas do usuário).
     private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool", "settings.json");
+        Environment.GetEnvironmentVariable("NBT_CONFIG_DIR")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool"),
+        "settings.json");
 
     public static Settings Load()
     {

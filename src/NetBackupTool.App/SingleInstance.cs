@@ -8,7 +8,8 @@ namespace NetBackupTool;
 /// </summary>
 public static class SingleInstance
 {
-    private static readonly string PipeName = "NetBackupTool-" + Environment.UserName;
+    // NBT_INSTANCE separa uma cópia de teste da que o usuário está usando.
+    private static readonly string PipeName = "NetBackupTool-" + Environment.UserName + Environment.GetEnvironmentVariable("NBT_INSTANCE");
 
     /// <summary>Se outra instância responder, pede para ela aparecer e devolve true.</summary>
     public static bool SignalExisting()

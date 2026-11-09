@@ -88,7 +88,8 @@ if (admin)
 else
     Check(r1.FilesFailed == 1 && r1.Errors.Any(e => e.Contains("bloqueado.dat") && e.Contains("administrador")), "arquivo bloqueado reportado com a dica de admin");
 
-var mirror = Path.Combine(dst, "PC-CLIENTE", Manifest.MapToRelative(src));
+// Padrão: a pasta escolhida chega pelo próprio nome ("origem"), sem o caminho completo.
+var mirror = Path.Combine(dst, "PC-CLIENTE", "origem");
 bool same = Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories)
     .Where(f => !f.EndsWith(".tmp") && !f.EndsWith("bloqueado.dat"))
     .All(f =>
@@ -110,6 +111,21 @@ Console.WriteLine("Segunda cópia (deve pular):");
 locker?.Dispose();
 var (r2, s2, _) = await Run();
 Check(s2.SkippedFiles == (admin ? 2004 : 2003) && r2.FilesOk == (admin ? 0 : 1), $"pulados = {s2.SkippedFiles}, copiados = {r2.FilesOk}");
+
+Console.WriteLine("Estrutura de pastas:");
+{
+    var one = Path.Combine(src, "sub", "pequeno_1.bin");
+    var only = Manifest.Scan([one], "", default);
+    Check(only.Entries.Single().RelativePath == "pequeno_1.bin", "arquivo escolhido chega sozinho, sem as pastas");
+    var full = Manifest.Scan([one], "", default, fullPaths: true);
+    Check(full.Entries.Single().RelativePath == Manifest.MapToRelative(one), "com caminho completo: " + full.Entries.Single().RelativePath);
+    var twice = Manifest.Scan([Path.Combine(src, "sub"), Path.Combine(src, "sub", "fundo")], "", default);
+    Check(twice.Entries.Any(e => e.IsDirectory && e.RelativePath == "sub") && twice.Entries.Any(e => e.IsDirectory && e.RelativePath == "fundo"),
+        "cada pasta escolhida vira uma pasta no destino");
+    File.WriteAllText(Path.Combine(root, "vazio.txt"), "outro");
+    var sameName = Manifest.Scan([Path.Combine(src, "sub", "fundo", "vazio.txt"), Path.Combine(root, "vazio.txt")], "", default);
+    Check(sameName.Entries.Select(e => e.RelativePath).OrderBy(x => x).SequenceEqual(["vazio (2).txt", "vazio.txt"]), "nomes iguais viram \"vazio (2).txt\"");
+}
 
 Console.WriteLine("Caminho malicioso:");
 Check(Throws(() => Manifest.ResolveSafe(dst, @"..\..\Windows\x.dll")), "'..' recusado");

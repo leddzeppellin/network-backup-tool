@@ -55,6 +55,8 @@ public sealed class Receiver : IDisposable
     public event Action? CodeChanged;
     public event Action<ReceiveSession>? SessionStarted;
     public event Action<ReceiveSession, TransferResult>? SessionEnded;
+    /// <summary>Arquivo gravado por inteiro (sessão, caminho relativo, tamanho).</summary>
+    public event Action<ReceiveSession, string, long>? FileReceived;
 
     public IReadOnlyCollection<ReceiveSession> ActiveSessions => _sessions.Keys.ToList();
 
@@ -370,6 +372,7 @@ public sealed class Receiver : IDisposable
                         try { File.SetLastWriteTimeUtc(st.Path, new DateTime(st.LastWriteUtcTicks, DateTimeKind.Utc)); } catch { }
                         Interlocked.Increment(ref session.OkCount);
                         session.Stats.FileDone();
+                        FileReceived?.Invoke(session, st.RelativePath, st.Size);
                     }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

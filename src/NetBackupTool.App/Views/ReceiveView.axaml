@@ -36,7 +36,10 @@
       <!-- Cópias em andamento -->
       <Border Classes="card">
         <StackPanel Spacing="10">
-          <TextBlock Classes="h2" Text="{l:T recv.sessionsTitle}" />
+          <DockPanel>
+            <Button x:Name="ClearButton" DockPanel.Dock="Right" Content="{l:T recv.clear}" IsVisible="False" Padding="10,4" />
+            <TextBlock Classes="h2" Text="{l:T recv.sessionsTitle}" VerticalAlignment="Center" />
+          </DockPanel>
           <TextBlock x:Name="NoSessions" Classes="muted" Text="{l:T recv.noSessions}" />
           <StackPanel x:Name="Sessions" Spacing="14" />
         </StackPanel>
@@ -59,7 +62,7 @@
         </StackPanel>
       </Border>
 
-      <Expander Header="{l:T send.details}" HorizontalAlignment="Stretch">
+      <Expander Header="{l:T recv.activity}" HorizontalAlignment="Stretch" IsExpanded="True">
         <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" Height="220"
                  FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" FontSize="12" />
       </Expander>

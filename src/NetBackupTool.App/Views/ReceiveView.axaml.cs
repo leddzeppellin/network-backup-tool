@@ -12,7 +12,33 @@ public partial class ReceiveView : UserControl
     private readonly MainWindow _main;
     private Receiver? _receiver;
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private readonly Dictionary<ReceiveSession, (SpeedMeter Meter, TextBlock Text, ProgressBar Bar, Control Root)> _rows = new();
+    private readonly Dictionary<ReceiveSession, SessionRow> _rows = new();
+    private readonly List<SessionRow> _finished = new();
+    private const int KeepFinished = 5;
+    private const long LogFileMinSize = 10L * 1024 * 1024;
+
+    /// <summary>Uma cópia na lista: quem envia, estado, arquivo atual, barra e números.</summary>
+    private sealed class SessionRow
+    {
+        public readonly SpeedMeter Meter = new();
+        public readonly TextBlock State = new() { FontSize = 12, FontWeight = FontWeight.SemiBold };
+        public readonly Border Pill;
+        public readonly TextBlock File = new() { Classes = { "caption" }, TextTrimming = TextTrimming.CharacterEllipsis };
+        public readonly ProgressBar Bar = new() { Maximum = 1000 };
+        public readonly TextBlock Text = new() { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
+        public readonly Control Root;
+
+        public SessionRow(string sender)
+        {
+            State.Text = L.T("recv.on");
+            Pill = new Border { Classes = { "pill" }, Child = State, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+            var header = new DockPanel();
+            DockPanel.SetDock(Pill, Dock.Right);
+            header.Children.Add(Pill);
+            header.Children.Add(new TextBlock { Text = sender, FontWeight = FontWeight.SemiBold, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+            Root = new StackPanel { Spacing = 6, Children = { header, File, Bar, Text } };
+        }
+    }
 
     public event Action<bool>? ReceivingChanged;
 
@@ -42,6 +68,12 @@ public partial class ReceiveView : UserControl
             ShowCode();
         };
         ChooseButton.Click += async (_, _) => await ChooseDestination();
+        ClearButton.Click += (_, _) =>
+        {
+            foreach (var row in _finished) Sessions.Children.Remove(row.Root);
+            _finished.Clear();
+            UpdateEmptyState();
+        };
         OpenButton.Click += (_, _) => Platform.OpenFolder(main.Settings.DestinationRoot);
         if (Platform.IsWindows)
         {
@@ -147,7 +179,15 @@ public partial class ReceiveView : UserControl
         receiver.Log += m => Dispatcher.UIThread.Post(() => Log(m));
         receiver.CodeChanged += () => Dispatcher.UIThread.Post(ShowCode);
         receiver.SessionStarted += s => Dispatcher.UIThread.Post(() =>
-            _main.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.SenderName)));
+        {
+            RowFor(s);
+            _main.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.SenderName));
+        });
+        receiver.FileReceived += (_, path, size) =>
+        {
+            // Arquivos grandes aparecem um a um na atividade; os pequenos só no total, para não inundar.
+            if (size >= LogFileMinSize) Dispatcher.UIThread.Post(() => Log(L.T("recv.fileDone", path, Format.Bytes(size))));
+        };
         receiver.SessionEnded += (s, r) => Dispatcher.UIThread.Post(() => SessionEnded(s, r));
         try
         {
@@ -183,12 +223,44 @@ public partial class ReceiveView : UserControl
         ShowCode();
     }
 
+    private SessionRow RowFor(ReceiveSession s)
+    {
+        if (!_rows.TryGetValue(s, out var row))
+        {
+            row = new SessionRow(s.SenderName);
+            _rows[s] = row;
+            Sessions.Children.Insert(0, row.Root);
+            UpdateEmptyState();
+        }
+        return row;
+    }
+
+    private void UpdateEmptyState()
+    {
+        NoSessions.IsVisible = Sessions.Children.Count == 0;
+        ClearButton.IsVisible = _finished.Count > 0;
+    }
+
     private void SessionEnded(ReceiveSession s, TransferResult r)
     {
-        if (_rows.Remove(s, out var row)) Sessions.Children.Remove(row.Root);
-        NoSessions.IsVisible = _rows.Count == 0;
-        var summary = L.T("recv.doneStatus", s.SenderName, r.FilesOk, Format.Bytes(s.Stats.BytesDone), s.Stats.SkippedFiles, r.FilesFailed);
-        Log(summary);
+        // A cópia continua na lista com o resumo, em vez de sumir (arquivos pequenos terminam num piscar).
+        var row = RowFor(s);
+        _rows.Remove(s);
+        row.Bar.Value = 1000;
+        row.File.Text = "";
+        row.File.IsVisible = false;
+        row.Text.Text = L.T("recv.doneStatus", s.SenderName, r.FilesOk, Format.Bytes(s.Stats.BytesDone), s.Stats.SkippedFiles, r.FilesFailed);
+        row.State.Text = L.T(r.FilesFailed > 0 ? "recv.withFailures" : "recv.done");
+        row.Pill.Classes.Set("ok", r.FilesFailed == 0);
+        _finished.Add(row);
+        while (_finished.Count > KeepFinished)
+        {
+            Sessions.Children.Remove(_finished[0].Root);
+            _finished.RemoveAt(0);
+        }
+        UpdateEmptyState();
+
+        Log(row.Text.Text);
         foreach (var e in r.Errors) Log(L.T("send.failLine", e));
         _main.Notify(L.T("recv.notifyDoneTitle"), r.FilesFailed > 0
             ? L.T("recv.notifyDoneFail", s.SenderName, r.FilesOk, r.FilesFailed)
@@ -200,21 +272,12 @@ public partial class ReceiveView : UserControl
         if (_receiver == null) return;
         foreach (var s in _receiver.ActiveSessions)
         {
-            if (!_rows.TryGetValue(s, out var row))
-            {
-                var name = new TextBlock { Text = s.SenderName, FontWeight = FontWeight.SemiBold };
-                var text = new TextBlock { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
-                var bar = new ProgressBar { Maximum = 1000 };
-                var root = new StackPanel { Spacing = 6, Children = { name, bar, text } };
-                row = (new SpeedMeter(), text, bar, root);
-                _rows[s] = row;
-                Sessions.Children.Add(root);
-            }
+            var row = RowFor(s);
             var (desc, value) = ProgressText.Describe(s.Stats, row.Meter);
             row.Text.Text = desc;
             row.Bar.Value = value;
+            row.File.Text = s.Stats.CurrentFile;
         }
-        NoSessions.IsVisible = _rows.Count == 0;
     }
 
     private void Log(string line) => ProgressText.Append(LogBox, line);

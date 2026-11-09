@@ -38,15 +38,34 @@ public static class Manifest
         return fullPath.TrimStart('\\', '/');
     }
 
-    public static ScanResult Scan(IEnumerable<string> sources, string excludePatterns, CancellationToken ct, Action<int>? progress = null)
+    /// <param name="fullPaths">
+    /// true: espelha o caminho completo de origem (C\Users\joao\Documentos\...).
+    /// false: cada item escolhido chega pelo próprio nome (Documentos\..., relatorio.txt).
+    /// </param>
+    public static ScanResult Scan(IEnumerable<string> sources, string excludePatterns, CancellationToken ct,
+        Action<int>? progress = null, bool fullPaths = false)
     {
         var result = new ScanResult();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var topNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var excludes = excludePatterns.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         bool Excluded(string name) => excludes.Any(p => FileSystemName.MatchesSimpleExpression(p, name));
 
-        void AddFile(FileInfo fi)
+        // Nome com que o item escolhido chega ao destino. Sem caminho completo, dois itens com o
+        // mesmo nome (ex.: "Documentos" de dois usuários) viram "Documentos" e "Documentos (2)".
+        string TopName(string fullPath, bool isDirectory)
+        {
+            if (fullPaths) return MapToRelative(fullPath);
+            var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(fullPath)));
+            if (string.IsNullOrEmpty(name)) name = MapToRelative(fullPath); // raiz de um disco: "C"
+            var unique = name;
+            for (int n = 2; !topNames.Add(unique); n++)
+                unique = isDirectory ? $"{name} ({n})" : $"{Path.GetFileNameWithoutExtension(name)} ({n}){Path.GetExtension(name)}";
+            return unique;
+        }
+
+        void AddFile(FileInfo fi, string rel)
         {
             if (Excluded(fi.Name)) return;
             if ((fi.Attributes & (RecallOnDataAccess | FileAttributes.Offline)) != 0)
@@ -54,7 +73,6 @@ public static class Manifest
                 result.CloudOnlySkipped++;
                 return;
             }
-            var rel = MapToRelative(fi.FullName);
             if (!seen.Add(rel)) return;
             result.Entries.Add(new FileEntry(rel, fi.Length, fi.LastWriteTimeUtc.Ticks, false) { SourcePath = fi.FullName });
             result.TotalBytes += fi.Length;
@@ -62,7 +80,7 @@ public static class Manifest
             if (result.FileCount % 500 == 0) progress?.Invoke(result.FileCount);
         }
 
-        void AddDir(DirectoryInfo root)
+        void AddDir(DirectoryInfo root, string rootRel)
         {
             var stack = new Stack<DirectoryInfo>();
             stack.Push(root);
@@ -70,7 +88,8 @@ public static class Manifest
             {
                 ct.ThrowIfCancellationRequested();
                 var dir = stack.Pop();
-                var rel = MapToRelative(dir.FullName);
+                var inside = Path.GetRelativePath(root.FullName, dir.FullName);
+                var rel = inside == "." ? rootRel : Path.Combine(rootRel, inside);
                 if (seen.Add(rel))
                     result.Entries.Add(new FileEntry(rel, 0, dir.LastWriteTimeUtc.Ticks, true) { SourcePath = dir.FullName });
 
@@ -104,7 +123,7 @@ public static class Manifest
                     }
                     else if (child is FileInfo fi)
                     {
-                        AddFile(fi);
+                        AddFile(fi, Path.Combine(rel, fi.Name));
                     }
                 }
             }
@@ -113,8 +132,8 @@ public static class Manifest
         foreach (var src in sources)
         {
             ct.ThrowIfCancellationRequested();
-            if (Directory.Exists(src)) AddDir(new DirectoryInfo(src));
-            else if (File.Exists(src)) AddFile(new FileInfo(src));
+            if (Directory.Exists(src)) AddDir(new DirectoryInfo(src), TopName(src, true));
+            else if (File.Exists(src)) AddFile(new FileInfo(src), TopName(src, false));
             else result.Warnings.Add(L.T("scan.notFound", src));
         }
         progress?.Invoke(result.FileCount);

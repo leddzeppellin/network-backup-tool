@@ -34,6 +34,10 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <StackPanel Spacing="2" Margin="0,2,0,4">
+            <CheckBox x:Name="FullPathsBox" Content="{l:T send.fullPaths}" />
+            <TextBlock Classes="caption" Text="{l:T send.fullPathsHint}" TextWrapping="Wrap" Margin="28,0,0,0" />
+          </StackPanel>
           <WrapPanel>
             <Button x:Name="UserFoldersButton" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal" Spacing="8">
