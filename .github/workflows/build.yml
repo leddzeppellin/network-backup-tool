@@ -112,9 +112,43 @@ jobs:
           name: macos
           path: out/*.zip
 
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Suporte a Android do .NET
+        run: dotnet workload install android
+      - name: APK (download direto) e AAB (Play Store), assinados
+        run: |
+          v="${NBT_VERSION#v}"
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/nbt.keystore"
+          sign="-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$RUNNER_TEMP/nbt.keystore -p:AndroidSigningKeyAlias=netbackuptool -p:AndroidSigningStorePass=env:ANDROID_KEYSTORE_PASSWORD -p:AndroidSigningKeyPass=env:ANDROID_KEYSTORE_PASSWORD"
+          common="-c Release -f net10.0-android -p:Version=$v -p:AndroidSdkDirectory=$ANDROID_SDK_ROOT"
+          dotnet publish src/NetBackupTool.Android $common $sign -p:AndroidPackageFormat=apk -o out/apk
+          dotnet publish src/NetBackupTool.Android $common $sign -p:AndroidPackageFormat=aab -o out/aab
+          mkdir -p dist
+          cp out/apk/*-Signed.apk dist/NetBackupTool-android.apk
+          cp out/aab/*-Signed.aab dist/NetBackupTool-android.aab
+          rm -f "$RUNNER_TEMP/nbt.keystore"
+          ls -la dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: dist/*
+
   release:
     if: github.ref_type == 'tag'
-    needs: [windows, linux, macos]
+    needs: [windows, linux, macos, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

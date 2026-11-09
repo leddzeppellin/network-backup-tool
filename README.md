@@ -6,8 +6,8 @@
 
 Copia arquivos de um computador para outro da rede local **sem compartilhamento do sistema**
 (sem SMB, sem pasta compartilhada, sem usuário/senha, sem grupo de trabalho). Um único executável,
-sem instalar nada — dá para levar no pendrive. Funciona entre Windows, Linux e macOS, em qualquer
-combinação.
+sem instalar nada — dá para levar no pendrive. Funciona entre Windows, Linux, macOS e Android, em
+qualquer combinação.
 
 | Sistema | Download |
 |---|---|
@@ -16,6 +16,7 @@ combinação.
 | Linux (ARM64) | [NetBackupTool-linux-arm64](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-linux-arm64) |
 | macOS (Apple Silicon) | [NetBackupTool-macos-arm64.zip](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-macos-arm64.zip) |
 | macOS (Intel) | [NetBackupTool-macos-x64.zip](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-macos-x64.zip) |
+| Android 8+ | [NetBackupTool-android.apk](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-android.apk) |
 
 <p align="center">
   <img src="docs/enviar.png" width="49%" alt="Tela Enviar">
@@ -56,6 +57,18 @@ grande recebido e as falhas.
 - **macOS**: descompacte e mova o app para Aplicativos. Como ainda não é assinado pela Apple, na
   primeira vez o macOS bloqueia: abra **Ajustes do Sistema → Privacidade e Segurança** e clique em
   **Abrir Mesmo Assim**. Permita também o acesso à **rede local** quando o macOS perguntar.
+
+### Android
+
+- Baixe o APK e abra; o Android pede para permitir a instalação de "fontes desconhecidas" para o
+  navegador ou gerenciador de arquivos (só na primeira vez).
+- Na primeira cópia o app pede **Acesso a todos os arquivos**: ative para o Network Backup Tool e
+  volte ao app. É o que permite ler DCIM, Downloads e as mídias do WhatsApp para o backup.
+- **Pastas do aparelho** adiciona DCIM, Imagens, Documentos, Downloads, Filmes, Música e as mídias
+  do WhatsApp. No seletor de pastas o Android não deixa escolher a raiz nem a própria Download,
+  só pastas dentro delas.
+- Ao receber, os arquivos vão para `Download/NetBackupTool`.
+- Mantenha o app aberto durante a cópia (a tela fica ligada sozinha).
 
 ## Configurações e modo persistente
 
