@@ -12,8 +12,8 @@
     <ApplicationId>io.github.leddzeppellin.netbackuptool</ApplicationId>
     <ApplicationTitle>Network Backup Tool</ApplicationTitle>
     <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
-    <!-- versionCode inteiro e crescente: 2.2.0 → 20200 -->
-    <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Major), 10000)), $([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Minor), 100)), $([System.Version]::Parse('$(Version)').Build)))))</ApplicationVersion>
+    <!-- versionCode inteiro e crescente: 2.2.0 → 20200 (mínimo 1: o Android recusa 0) -->
+    <ApplicationVersion>$([System.Math]::Max(1, $([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Major), 10000)), $([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Minor), 100)), $([System.Version]::Parse('$(Version)').Build)))))))</ApplicationVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
 
