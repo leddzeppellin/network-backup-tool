@@ -316,8 +316,10 @@ public partial class ReceiveView : UserControl
         }
         UpdateEmptyState();
 
-        Log(row.Text.Text);
+        // O serviço já registra o fim da sessão na atividade; aqui só o resumo do app local.
+        if (!_engine.IsService) Log(row.Text.Text);
         foreach (var e in r.Errors) Log(L.T("send.failLine", e));
+        if (_engine is ServiceEngine { Replaying: true }) return;
         _main.Host.Notify(L.T("recv.notifyDoneTitle"), r.FilesFailed > 0
             ? L.T("recv.notifyDoneFail", s.Sender, r.FilesOk, r.FilesFailed)
             : L.T("recv.notifyDone", s.Sender, r.FilesOk));

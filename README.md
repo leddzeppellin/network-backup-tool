@@ -11,7 +11,8 @@ qualquer combinação.
 
 | Sistema | Download |
 |---|---|
-| Windows 10/11 (64 bits) | [NetBackupTool.exe](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool.exe) |
+| Windows — instalador (servidor ou estação) | [NetBackupTool-Setup.exe](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-Setup.exe) |
+| Windows 10/11 (64 bits) — portátil | [NetBackupTool.exe](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool.exe) |
 | Linux (x64) | [NetBackupTool-linux-x64](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-linux-x64) |
 | Linux (ARM64) | [NetBackupTool-linux-arm64](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-linux-arm64) |
 | macOS (Apple Silicon) | [NetBackupTool-macos-arm64.zip](https://github.com/leddzeppellin/network-backup-tool/releases/latest/download/NetBackupTool-macos-arm64.zip) |
@@ -69,6 +70,20 @@ grande recebido e as falhas.
   só pastas dentro delas.
 - Ao receber, os arquivos vão para `Download/NetBackupTool`.
 - Mantenha o app aberto durante a cópia (a tela fica ligada sozinha).
+
+## Versão instalável (Windows)
+
+O `NetBackupTool-Setup.exe` instala o programa em Arquivos de Programas e pergunta o papel do PC:
+
+- **Servidor**: um serviço do Windows recebe as cópias **o tempo todo, mesmo sem ninguém logado**,
+  com código fixo, na pasta escolhida. Se o serviço cair, volta sozinho. O app vira o painel desse
+  serviço: mostra o código, as cópias e a atividade; trocar a pasta, gerar outro código ou parar pede
+  a confirmação de administrador do Windows.
+- **Estação de trabalho**: instala o programa com atalho no menu Iniciar.
+
+O instalador libera o programa no firewall. Atualizações (Sobre → Verificar atualizações) rodam o
+instalador novo sem telas e mantêm o papel, a pasta e o código. A desinstalação remove o serviço e a
+regra de firewall e mantém os arquivos recebidos.
 
 ## Configurações e modo persistente
 

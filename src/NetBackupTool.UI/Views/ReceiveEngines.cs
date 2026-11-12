@@ -108,6 +108,8 @@ public sealed class ServiceEngine : IReceiveEngine
     private AgentStatus? _status;
 
     public bool IsService => true;
+    /// <summary>Durante a primeira consulta os eventos são histórico: mostrar, mas sem avisos.</summary>
+    public bool Replaying => _first;
     public bool IsRunning => _status?.Running == true;
     public bool Reachable => _status != null;
     public string Code => _status?.Code ?? "";
