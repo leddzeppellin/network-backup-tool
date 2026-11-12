@@ -44,7 +44,8 @@ public sealed record AgentStatus(
 
 public sealed record AgentRequest(string Cmd, long Since = 0, string? Arg = null);
 
-public sealed record AgentResponse(bool Ok, string? Error = null, AgentStatus? Status = null);
+/// <param name="Data">Resposta em JSON dos comandos que devolvem dados (pastas, visão geral).</param>
+public sealed record AgentResponse(bool Ok, string? Error = null, AgentStatus? Status = null, string? Data = null);
 
 /// <summary>Conversa com o serviço por um named pipe local (uma pergunta e uma resposta por conexão).</summary>
 public static class AgentClient
@@ -52,7 +53,17 @@ public static class AgentClient
     public const string PipeName = "NetBackupTool-Servico";
     public const string CmdArg = "--servico-cmd";
 
-    public static readonly string[] AdminCommands = ["start", "stop", "newcode", "dest", "restart"];
+    public static readonly string[] AdminCommands = ["start", "stop", "newcode", "dest", "restart", "shares-apply"];
+
+    /// <summary>Comandos que só leem: qualquer usuário do PC pode pedir.</summary>
+    public static readonly string[] ReadCommands = ["status", "shares-get", "shares-overview"];
+
+    /// <summary>Lê dados do serviço (JSON em Data).</summary>
+    public static async Task<T?> GetAsync<T>(string cmd) where T : class
+    {
+        var r = await SendAsync(new AgentRequest(cmd), 3000);
+        return r.Ok && r.Data != null ? JsonSerializer.Deserialize<T>(r.Data) : null;
+    }
 
     public static async Task<AgentResponse> SendAsync(AgentRequest req, int timeoutMs = 1500)
     {
@@ -89,6 +100,14 @@ public static class AgentClient
             var r = await SendAsync(new AgentRequest(cmd, 0, arg), 5000);
             return r.Ok ? null : r.Error ?? "?";
         }
+        // Conteúdo grande (configuração com senhas) vai por um arquivo temporário que o lado elevado lê e apaga.
+        string? tempFile = null;
+        if (cmd == "shares-apply" && arg != null)
+        {
+            tempFile = Path.Combine(Path.GetTempPath(), $"nbt-{Guid.NewGuid():N}.json");
+            File.WriteAllText(tempFile, arg);
+            arg = tempFile;
+        }
         try
         {
             var psi = new ProcessStartInfo(Platform.Exe) { Verb = "runas", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden };
@@ -97,11 +116,24 @@ public static class AgentClient
             if (arg != null) psi.ArgumentList.Add(arg);
             using var p = Process.Start(psi)!;
             await p.WaitForExitAsync();
-            return p.ExitCode == 0 ? null : L.T("svc.cmdFailed");
+            if (p.ExitCode == 0) return null;
+            // O lado elevado deixa a mensagem de erro num arquivo ao lado do pedido.
+            var errFile = tempFile + ".erro";
+            if (tempFile != null && File.Exists(errFile))
+            {
+                var msg = File.ReadAllText(errFile);
+                File.Delete(errFile);
+                return msg;
+            }
+            return L.T("svc.cmdFailed");
         }
         catch (System.ComponentModel.Win32Exception)
         {
             return L.T("svc.needAdmin");
+        }
+        finally
+        {
+            if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
 }

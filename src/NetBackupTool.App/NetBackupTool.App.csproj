@@ -30,6 +30,7 @@
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.15" />
+    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>

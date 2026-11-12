@@ -100,12 +100,21 @@ public sealed class AgentCore : IDisposable
 
     private AgentResponse Handle(AgentRequest req, bool isAdmin)
     {
-        if (req.Cmd != "status" && !isAdmin) return new AgentResponse(false, L.T("svc.needAdmin"));
+        if (!AgentClient.ReadCommands.Contains(req.Cmd) && !isAdmin) return new AgentResponse(false, L.T("svc.needAdmin"));
         string? error = null;
         switch (req.Cmd)
         {
             case "status":
                 break;
+            case "shares-get":
+                return new AgentResponse(true, Data: ShareConfig.Load().ToJson());
+            case "shares-apply" when !string.IsNullOrWhiteSpace(req.Arg):
+                var apply = JsonSerializer.Deserialize<ShareApplyRequest>(req.Arg);
+                if (apply == null) return new AgentResponse(false, "?");
+                Add("log", L.T("srv.applying"));
+                error = ShareApplier.Apply(apply);
+                Add("log", error == null ? L.T("srv.applied") : L.T("srv.applyFailed", error));
+                return new AgentResponse(error == null, error, Data: ShareConfig.Load().ToJson());
             case "start":
                 _config.Enabled = true;
                 TrySave();
@@ -183,7 +192,7 @@ public sealed class AgentCore : IDisposable
                 var req = line == null ? null : JsonSerializer.Deserialize<AgentRequest>(line);
                 if (req == null) return;
                 bool isAdmin = false;
-                if (req.Cmd != "status")
+                if (!AgentClient.ReadCommands.Contains(req.Cmd))
                 {
                     // Vê o token de quem conectou: com o UAC, só o app elevado conta como administrador.
                     pipe.RunAsClient(() =>
@@ -193,7 +202,10 @@ public sealed class AgentCore : IDisposable
                     });
                 }
                 AgentResponse resp;
-                lock (this) resp = Handle(req, isAdmin);
+                if (req.Cmd == "shares-overview")
+                    resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
+                else
+                    lock (this) resp = Handle(req, isAdmin);
                 await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
             }
             catch { /* cliente sumiu */ }
@@ -303,7 +315,15 @@ public static class AgentSetup
     public static int Command(string cmd, string? arg)
     {
         if (cmd == "restart") return Restart();
+        string? requestFile = null;
+        if (cmd == "shares-apply" && arg != null && File.Exists(arg))
+        {
+            requestFile = arg;
+            arg = File.ReadAllText(requestFile);
+            File.Delete(requestFile); // tinha senhas: não fica no disco
+        }
         var r = AgentClient.SendAsync(new AgentRequest(cmd, 0, arg), 5000).GetAwaiter().GetResult();
+        if (!r.Ok && requestFile != null) File.WriteAllText(requestFile + ".erro", r.Error ?? "?");
         return r.Ok ? 0 : 1;
     }
 

@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.ServerView">
+  <DockPanel>
+    <!-- Barra de "Aplicar": aparece quando há mudanças no rascunho -->
+    <Border x:Name="ApplyBar" DockPanel.Dock="Bottom" IsVisible="False" Background="{DynamicResource CardBg}"
+            BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,1,0,0" Padding="32,12">
+      <DockPanel MaxWidth="980">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+          <Button x:Name="DiscardButton" Content="{l:T srv.discard}" />
+          <Button x:Name="ApplyButton" Classes="accent" Content="{l:T srv.apply}" MinWidth="110" HorizontalContentAlignment="Center" />
+        </StackPanel>
+        <TextBlock x:Name="ApplyText" Text="{l:T srv.pending}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Classes="page" Spacing="16" MaxWidth="980">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h1" Text="{l:T nav.server}" />
+          <TextBlock Classes="muted" Text="{l:T srv.subtitle}" />
+        </StackPanel>
+
+        <TextBlock x:Name="ProblemText" Classes="muted" Foreground="IndianRed" IsVisible="False" />
+
+        <!-- Pasta da empresa e endereço -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock x:Name="SetupTitle" Classes="h2" Text="{l:T srv.setupTitle}" />
+            <TextBlock x:Name="SetupText" Classes="muted" Text="{l:T srv.setupText}" />
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+              <TextBlock Text="{l:T srv.root}" VerticalAlignment="Center" />
+              <TextBlock x:Name="RootText" Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" />
+              <Button x:Name="ChooseRootButton" Grid.Column="2" Content="{l:T srv.chooseRoot}" />
+              <TextBlock Grid.Row="1" Text="{l:T srv.shareName}" VerticalAlignment="Center" />
+              <TextBox x:Name="ShareNameBox" Grid.Row="1" Grid.Column="1" MaxWidth="260" HorizontalAlignment="Left" Width="260" />
+              <TextBlock Grid.Row="2" Text="{l:T srv.address}" VerticalAlignment="Center" />
+              <SelectableTextBlock x:Name="AddressText" Grid.Row="2" Grid.Column="1" Classes="code" VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Abas -->
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ToggleButton x:Name="TabOverview" Classes="chip" Content="{l:T srv.tabOverview}" />
+          <ToggleButton x:Name="TabFolders" Classes="chip" Content="{l:T srv.tabFolders}" />
+          <ToggleButton x:Name="TabPeople" Classes="chip" Content="{l:T srv.tabPeople}" />
+        </StackPanel>
+
+        <!-- Visão geral -->
+        <StackPanel x:Name="OverviewPanel" Spacing="12">
+          <UniformGrid Columns="3">
+            <Border Classes="card" Margin="0,0,8,0">
+              <StackPanel>
+                <TextBlock Classes="caption" Text="{l:T srv.connected}" />
+                <TextBlock x:Name="SessionsText" FontSize="24" FontWeight="SemiBold" Text="—" />
+              </StackPanel>
+            </Border>
+            <Border Classes="card" Margin="4,0,4,0">
+              <StackPanel>
+                <TextBlock Classes="caption" Text="{l:T srv.openFiles}" />
+                <TextBlock x:Name="OpenCountText" FontSize="24" FontWeight="SemiBold" Text="—" />
+              </StackPanel>
+            </Border>
+            <Border Classes="card" Margin="8,0,0,0">
+              <StackPanel>
+                <TextBlock Classes="caption" Text="{l:T srv.peopleCount}" />
+                <TextBlock x:Name="PeopleCountText" FontSize="24" FontWeight="SemiBold" Text="—" />
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="{l:T srv.openFiles}" />
+              <TextBlock x:Name="NoOpenFiles" Classes="muted" Text="{l:T srv.noOpenFiles}" />
+              <StackPanel x:Name="OpenFilesList" Spacing="6" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Pastas -->
+        <Grid x:Name="FoldersPanel" ColumnDefinitions="230,*" ColumnSpacing="12" IsVisible="False">
+          <Border Classes="card" VerticalAlignment="Top">
+            <StackPanel Spacing="6">
+              <StackPanel x:Name="FolderList" Spacing="2" />
+              <TextBox x:Name="NewFolderBox" Watermark="{l:T srv.newFolder}" Margin="0,8,0,0" />
+              <Button x:Name="AddFolderButton" Content="{l:T srv.add}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+            <StackPanel x:Name="FolderDetail" Spacing="10" />
+          </Border>
+        </Grid>
+
+        <!-- Pessoas e grupos -->
+        <StackPanel x:Name="PeoplePanel" Spacing="12" IsVisible="False">
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="{l:T srv.groups}" />
+              <WrapPanel x:Name="GroupList" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox x:Name="NewGroupBox" Watermark="{l:T srv.groupName}" Width="220" />
+                <Button x:Name="AddGroupButton" Content="{l:T srv.add}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="h2" Text="{l:T srv.people}" />
+              <StackPanel x:Name="PeopleList" Spacing="12" />
+              <Border BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+                <WrapPanel>
+                  <TextBox x:Name="NewLoginBox" Watermark="{l:T srv.login}" Width="170" Margin="0,0,8,8" />
+                  <TextBox x:Name="NewNameBox" Watermark="{l:T srv.fullName}" Width="200" Margin="0,0,8,8" />
+                  <TextBox x:Name="NewPasswordBox" Watermark="{l:T srv.password}" PasswordChar="●" Width="170" Margin="0,0,8,8" />
+                  <Button x:Name="AddPersonButton" Classes="accent" Content="{l:T srv.addPerson}" Margin="0,0,0,8" />
+                </WrapPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

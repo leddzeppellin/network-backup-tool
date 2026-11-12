@@ -162,6 +162,18 @@
     <Setter Property="Background" Value="{DynamicResource ChipBg}" />
   </Style>
 
+  <!-- Botões de permissão "Sem acesso | Ler | Ler e editar" -->
+  <Style Selector="ToggleButton.seg">
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Padding" Value="10,5" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Margin" Value="0" />
+  </Style>
+  <Style Selector="ToggleButton.seg:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavActiveBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavActiveFg}" />
+  </Style>
+
   <!-- Indicador de estado -->
   <Style Selector="Border.pill">
     <Setter Property="CornerRadius" Value="12" />

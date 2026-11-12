@@ -34,6 +34,8 @@ public partial class MainView : UserControl
     public ReceiveView ReceivePage { get; }
     private readonly SettingsView _settingsPage;
     private readonly AboutView _aboutPage;
+    /// <summary>Só na versão instalada como servidor.</summary>
+    private readonly ServerView? _serverPage;
     private TaskCompletionSource<bool>? _overlay;
     private const double CompactWidth = 700;
 
@@ -51,6 +53,12 @@ public partial class MainView : UserControl
         ReceivePage = new ReceiveView(this);
         _settingsPage = new SettingsView(this);
         _aboutPage = new AboutView(this);
+        if (host != null && host.IsDesktop && Agent.AgentConfig.ServerInstalled)
+        {
+            _serverPage = new ServerView(this);
+            NavServer.IsVisible = true;
+            NavServer.Click += (_, _) => Navigate(_serverPage);
+        }
 
         void Link(Button nav, Button tab, Control page)
         {
@@ -87,6 +95,7 @@ public partial class MainView : UserControl
             navs[i].Classes.Set("active", pages[i] == page);
             tabs[i].Classes.Set("active", pages[i] == page);
         }
+        NavServer.Classes.Set("active", page == _serverPage && page != null);
     }
 
     public void ShowReceivePage() => Navigate(ReceivePage);
