@@ -71,7 +71,10 @@ public partial class AboutView : UserControl
             if (!await _main.Ask(L.T("upd.available", latest.Version.ToString(3), current.ToString(3)), yesNo: true, title: L.T("upd.title")))
                 return;
 
-            var newFile = Platform.Exe + ".new";
+            // Versão instalada: baixa o instalador para a pasta temporária (Arquivos de Programas não aceita gravação).
+            var newFile = Updater.IsInstalled
+                ? Path.Combine(Path.GetTempPath(), Updater.SetupAsset)
+                : Platform.Exe + ".new";
             UpdateProgress.IsVisible = true;
             try
             {
@@ -81,7 +84,22 @@ public partial class AboutView : UserControl
                     Status(L.T("upd.downloading", latest.Version.ToString(3), p));
                 });
                 await Updater.DownloadAsync(latest, newFile, progress, CancellationToken.None);
-                _main.Host.ExitForUpdate(newFile);
+                if (Updater.IsInstalled)
+                {
+                    try
+                    {
+                        Updater.RunSetup(newFile);
+                    }
+                    catch (System.ComponentModel.Win32Exception)
+                    {
+                        return; // UAC recusado
+                    }
+                    _main.Host.ExitApp();
+                }
+                else
+                {
+                    _main.Host.ExitForUpdate(newFile);
+                }
             }
             catch (InvalidDataException ex)
             {

@@ -26,9 +26,26 @@ public static class Updater
     /// <summary>Nome do arquivo deste sistema na release.</summary>
     public static string AssetName =>
         OperatingSystem.IsAndroid() ? "NetBackupTool-android.apk"
-        : OperatingSystem.IsWindows() ? "NetBackupTool.exe"
+        : OperatingSystem.IsWindows() ? (IsInstalled ? SetupAsset : "NetBackupTool.exe")
         : OperatingSystem.IsMacOS() ? $"NetBackupTool-macos-{(RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64")}.zip"
         : $"NetBackupTool-linux-{(RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64")}";
+
+    public const string SetupAsset = "NetBackupTool-Setup.exe";
+
+    /// <summary>Versão instalada (Inno Setup deixa o desinstalador ao lado do executável).</summary>
+    public static bool IsInstalled =>
+        OperatingSystem.IsWindows() && File.Exists(Path.Combine(Path.GetDirectoryName(Platform.Exe)!, "unins000.exe"));
+
+    /// <summary>
+    /// Versão instalada: roda o instalador novo em modo silencioso (pede administrador). Ele fecha o
+    /// app, para o serviço, troca os arquivos, religa o serviço e reabre o app.
+    /// </summary>
+    public static void RunSetup(string setupFile)
+    {
+        var psi = new ProcessStartInfo(setupFile) { UseShellExecute = true, Verb = "runas" };
+        foreach (var a in new[] { "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS" }) psi.ArgumentList.Add(a);
+        Process.Start(psi);
+    }
 
     /// <summary>No macOS o programa é um pacote .app; a troca é feita baixando o pacote novo.</summary>
     public static bool CanSelfUpdate => !OperatingSystem.IsMacOS() && !OperatingSystem.IsAndroid();

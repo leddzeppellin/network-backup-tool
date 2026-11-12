@@ -26,7 +26,9 @@ public sealed class SpeedMeter
 public static class ProgressText
 {
     /// <summary>"12 de 300 arquivos — 1,2 GB de 4 GB — 110 MB/s — faltam 30s" e o valor da barra (0–1000).</summary>
-    public static (string Text, int Value) Describe(TransferStats s, SpeedMeter meter)
+    public static (string Text, int Value) Describe(TransferStats s, SpeedMeter meter) => Describe(s.Snapshot("", ""), meter);
+
+    public static (string Text, int Value) Describe(SessionSnapshot s, SpeedMeter meter)
     {
         long done = s.BytesDone, total = s.TotalBytes;
         int value = total > 0 ? (int)Math.Min(1000, 1000 * done / total)
@@ -38,11 +40,12 @@ public static class ProgressText
         return (text, value);
     }
 
-    public static void Append(TextBox log, string line)
+    /// <param name="stamp">false quando a linha já vem com a hora (eventos do serviço).</param>
+    public static void Append(TextBox log, string line, bool stamp = true)
     {
         var current = log.Text ?? "";
         if (current.Length > 1_000_000) current = "";
-        log.Text = current + $"{DateTime.Now:HH:mm:ss}  {line}{Environment.NewLine}";
+        log.Text = current + (stamp ? $"{DateTime.Now:HH:mm:ss}  {line}" : line) + Environment.NewLine;
         log.CaretIndex = log.Text.Length;
     }
 }

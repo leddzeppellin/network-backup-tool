@@ -64,12 +64,25 @@ jobs:
           github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: signed
-      - name: Usar o .exe assinado
-        if: hashFiles('signed/NetBackupTool.exe') != ''
-        uses: actions/upload-artifact@v7
+      # Instalador (versão instalável) com o .exe assinado, se houver.
+      - name: Instalador
+        shell: pwsh
+        run: |
+          $exe = if (Test-Path signed/NetBackupTool.exe) { "$PWD/signed/NetBackupTool.exe" } else { "$PWD/out/NetBackupTool.exe" }
+          $iscc = @("${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe", "$env:ProgramFiles/Inno Setup 6/ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress | Out-Null
+            $iscc = "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
+          }
+          & $iscc /Q "/DAppVersion=$("$env:NBT_VERSION".TrimStart('v'))" "/DSourceExe=$exe" installer/NetBackupTool.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $exe dist/NetBackupTool.exe
+          Copy-Item publish-setup/NetBackupTool-Setup.exe dist/
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: signed/NetBackupTool.exe
+          path: dist/*
           overwrite: true
 
   linux:

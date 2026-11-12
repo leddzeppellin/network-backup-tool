@@ -33,6 +33,12 @@ public sealed class ReceiveSession
     public required string BaseDir { get; init; }
     public DateTime Started { get; } = DateTime.Now;
     public TransferStats Stats { get; } = new();
+    public string Id { get; } = Guid.NewGuid().ToString("N")[..12];
+
+    public SessionSnapshot Snapshot() => Stats.Snapshot(Id, SenderName);
+
+    public SessionEnd EndOf(TransferResult r) =>
+        new(r.FilesOk, r.FilesFailed, Stats.BytesDone, Stats.SkippedFiles, r.Errors);
 
     internal void AddError(string msg) => Errors.Enqueue(msg);
 }

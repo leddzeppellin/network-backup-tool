@@ -43,6 +43,13 @@ public partial class SettingsView : UserControl
         };
 
         TrayRow.IsVisible = AutostartRow.IsVisible = PersistentHint.IsVisible = main.Host.IsDesktop;
+        if (main.ReceivePage.IsServiceMode)
+        {
+            // O serviço do Windows já recebe o tempo todo e com código fixo: as opções do modo persistente não se aplicam.
+            TrayRow.IsVisible = AutostartRow.IsVisible = false;
+            ((Control)FixedSwitch.Parent!).IsVisible = false;
+            PersistentHint.Text = L.T("svc.settingsHint");
+        }
         TraySwitch.IsChecked = s.KeepInTray;
         AutostartSwitch.IsChecked = Platform.IsAutostart();
         FixedSwitch.IsChecked = s.FixedCode.Length == 6;

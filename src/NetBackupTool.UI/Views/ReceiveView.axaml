@@ -9,6 +9,15 @@
         <TextBlock x:Name="SubtitleText" Classes="muted" Text="{l:T recv.subtitle}" TextWrapping="Wrap" />
       </StackPanel>
 
+      <!-- Versão instalada como servidor: quem recebe é o serviço do Windows -->
+      <Border x:Name="ServiceBanner" Classes="card" IsVisible="False" Padding="16,12">
+        <DockPanel>
+          <Button x:Name="RestartServiceButton" DockPanel.Dock="Right" Content="{l:T svc.restart}" IsVisible="False" VerticalAlignment="Center" Margin="12,0,0,0" />
+          <PathIcon DockPanel.Dock="Left" Data="{StaticResource IconShield}" Width="18" Height="18" Foreground="{DynamicResource AccentText}" Margin="0,0,12,0" VerticalAlignment="Top" />
+          <TextBlock x:Name="ServiceText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+
       <!-- Código e estado -->
       <Border Classes="card" Padding="22,20">
         <DockPanel>

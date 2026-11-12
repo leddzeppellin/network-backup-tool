@@ -20,6 +20,17 @@ public sealed class TransferStats
     public void AddBytes(long n) => Interlocked.Add(ref _bytesDone, n);
     public void FileDone() => Interlocked.Increment(ref _filesDone);
     public void FileFailed() => Interlocked.Increment(ref _filesFailed);
+
+    public SessionSnapshot Snapshot(string id, string sender) =>
+        new(id, sender, BytesDone, TotalBytes, FilesDone, FilesFailed, TotalFiles, SkippedFiles, CurrentFile);
 }
+
+/// <summary>Retrato de uma cópia num instante (vai pelo canal do serviço para a interface).</summary>
+public sealed record SessionSnapshot(
+    string Id, string Sender, long BytesDone, long TotalBytes,
+    int FilesDone, int FilesFailed, int TotalFiles, int SkippedFiles, string CurrentFile);
+
+/// <summary>Resultado de uma cópia recebida.</summary>
+public sealed record SessionEnd(int FilesOk, int FilesFailed, long Bytes, int Skipped, IReadOnlyList<string> Errors);
 
 public sealed record TransferResult(int FilesOk, int FilesFailed, IReadOnlyList<string> Errors);

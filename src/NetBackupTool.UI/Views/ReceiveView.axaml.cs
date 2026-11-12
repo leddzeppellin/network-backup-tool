@@ -1,22 +1,21 @@
-using System.Net.Sockets;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Nbt.Core;
+using NetBackupTool.Agent;
 
 namespace NetBackupTool;
 
 public partial class ReceiveView : UserControl
 {
     private readonly MainView _main;
-    private Receiver? _receiver;
+    private readonly IReceiveEngine _engine;
     private IDisposable? _multicast;
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private readonly Dictionary<ReceiveSession, SessionRow> _rows = new();
+    private readonly Dictionary<string, SessionRow> _rows = new();
     private readonly List<SessionRow> _finished = new();
     private const int KeepFinished = 5;
-    private const long LogFileMinSize = 10L * 1024 * 1024;
 
     /// <summary>Uma cópia na lista: quem envia, estado, arquivo atual, barra e números.</summary>
     private sealed class SessionRow
@@ -43,9 +42,11 @@ public partial class ReceiveView : UserControl
 
     public event Action<bool>? ReceivingChanged;
 
-    public bool IsReceiving => _receiver != null;
-    public bool Busy => _receiver?.ActiveSessions.Count > 0;
-    public string CurrentCode => _receiver?.Code ?? "";
+    /// <summary>Recebendo por este app (no modo serviço, fechar o app não interrompe nada).</summary>
+    public bool IsReceiving => !_engine.IsService && _engine.IsRunning;
+    public bool Busy => !_engine.IsService && _engine.Active.Count > 0;
+    public bool IsServiceMode => _engine.IsService;
+    public string CurrentCode => _engine.Code;
 
     public ReceiveView() : this(null!) { } // designer
 
@@ -53,18 +54,37 @@ public partial class ReceiveView : UserControl
     {
         _main = main;
         InitializeComponent();
+        _engine = main != null && main.Host.IsDesktop && AgentConfig.ServerInstalled ? new ServiceEngine() : new LocalEngine();
         if (main == null) return;
         if (Platform.IsAndroid) SubtitleText.Text = L.T("mobile.recvSubtitle");
 
-        ShowDestination();
-        StartStopButton.Click += (_, _) => Toggle();
-        NewCodeButton.Click += (_, _) =>
+        // O serviço manda a hora em que aconteceu (o histórico aparece ao abrir o app).
+        _engine.Log += line => ProgressText.Append(LogBox, line, stamp: !_engine.IsService);
+        _engine.StateChanged += () =>
         {
-            var code = Protocol.NewCode();
-            _receiver?.SetCode(code);
-            if (main.Settings.FixedCode.Length == 6)
+            ShowCode();
+            ShowDestination();
+            if (_engine.IsService) ShowServiceState();
+        };
+        _engine.SessionStarted += s =>
+        {
+            RowFor(s);
+            _main.Host.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.Sender));
+        };
+        _engine.SessionEnded += SessionEnded;
+
+        StartStopButton.Click += (_, _) => Toggle();
+        NewCodeButton.Click += async (_, _) =>
+        {
+            if (_engine.IsService)
             {
-                main.Settings.FixedCode = code;
+                await Report(await _engine.NewCodeAsync());
+                return;
+            }
+            await _engine.NewCodeAsync();
+            if (main.Settings.FixedCode.Length == 6 && _engine.Code.Length == 6)
+            {
+                main.Settings.FixedCode = _engine.Code;
                 main.Settings.Save();
             }
             ShowCode();
@@ -76,8 +96,8 @@ public partial class ReceiveView : UserControl
             _finished.Clear();
             UpdateEmptyState();
         };
-        OpenButton.Click += (_, _) => Platform.OpenFolder(main.Settings.DestinationRoot);
-        if (Platform.IsWindows && main.Host.IsDesktop)
+        OpenButton.Click += (_, _) => Platform.OpenFolder(DestinationPath);
+        if (Platform.IsWindows && main.Host.IsDesktop && !_engine.IsService)
         {
             FirewallButton.IsVisible = true;
             FirewallButton.Click += (_, _) =>
@@ -86,9 +106,31 @@ public partial class ReceiveView : UserControl
                 Log(ok == null ? L.T("recv.fwCanceled") : ok.Value ? L.T("recv.fwCreated") : L.T("recv.fwNotConfirmed"));
             };
         }
+        if (_engine is ServiceEngine svc)
+        {
+            ServiceBanner.IsVisible = true;
+            RestartServiceButton.Click += async (_, _) => await Report(await svc.RestartServiceAsync());
+            _refresh.Start(); // o serviço pode estar recebendo antes do app abrir
+            ShowServiceState();
+        }
         _refresh.Tick += (_, _) => RefreshSessions();
         ShowMachine();
         ShowCode();
+        ShowDestination();
+    }
+
+    private string DestinationPath => _engine is ServiceEngine svc ? svc.Destination : _main.Settings.DestinationRoot;
+
+    private async Task Report(string? error)
+    {
+        if (error != null) await _main.Ask(error, error: true);
+    }
+
+    private void ShowServiceState()
+    {
+        var svc = (ServiceEngine)_engine;
+        ServiceText.Text = L.T(!svc.Reachable ? "svc.down" : svc.IsRunning ? "svc.on" : "svc.paused");
+        RestartServiceButton.IsVisible = !svc.Reachable;
     }
 
     private void ShowMachine()
@@ -102,21 +144,22 @@ public partial class ReceiveView : UserControl
 
     private void ShowCode()
     {
+        bool running = _engine.IsRunning;
         var fixedCode = _main.Settings.FixedCode;
-        var code = _receiver?.Code ?? (fixedCode.Length == 6 ? fixedCode : "");
+        var code = running ? _engine.Code : _engine.IsService ? _engine.Code : (fixedCode.Length == 6 ? fixedCode : "");
         CodeText.Text = code.Length == 6 ? $"{code[..3]} {code[3..]}" : "--- ---";
-        CodeText.Opacity = _receiver != null ? 1 : 0.45;
-        StartStopButton.Content = L.T(_receiver != null ? "recv.stop" : "recv.start");
-        StartStopButton.Classes.Set("accent", _receiver == null);
-        StateText.Text = L.T(_receiver != null ? "recv.on" : "recv.off");
-        StatePill.Classes.Set("ok", _receiver != null);
-        StateDot.Classes.Set("on", _receiver != null);
-        ReceivingChanged?.Invoke(_receiver != null);
+        CodeText.Opacity = running ? 1 : 0.45;
+        StartStopButton.Content = L.T(running ? "recv.stop" : "recv.start");
+        StartStopButton.Classes.Set("accent", !running);
+        StateText.Text = L.T(running ? "recv.on" : "recv.off");
+        StatePill.Classes.Set("ok", running);
+        StateDot.Classes.Set("on", running);
+        ReceivingChanged?.Invoke(running);
     }
 
     private void ShowDestination()
     {
-        var path = _main.Settings.DestinationRoot;
+        var path = DestinationPath;
         DestText.Text = path.Length > 0 ? path : L.T("recv.noFolder");
         DestText.Opacity = path.Length > 0 ? 1 : 0.6;
         OpenButton.IsEnabled = path.Length > 0;
@@ -137,21 +180,35 @@ public partial class ReceiveView : UserControl
             await _main.Ask(L.T("android.badPick"));
             return false;
         }
+        if (_engine.IsService)
+        {
+            var error = await _engine.SetDestinationAsync(path);
+            await Report(error);
+            ShowDestination();
+            return error == null;
+        }
         _main.Settings.DestinationRoot = path;
         _main.Settings.Save();
-        if (_receiver != null) _receiver.DestinationRoot = path;
+        await _engine.SetDestinationAsync(path);
         ShowDestination();
         return true;
     }
 
     public void EnsureReceiving()
     {
-        if (_receiver == null) Toggle();
+        if (!_engine.IsRunning && !_engine.IsService) Toggle();
     }
 
     public async void Toggle()
     {
-        if (_receiver != null)
+        if (_engine.IsService)
+        {
+            if (_engine.IsRunning && _engine.Active.Count > 0 && !await _main.Ask(L.T("busy.stop"), yesNo: true)) return;
+            await Report(_engine.IsRunning ? await _engine.StopAsync() : await _engine.StartAsync("", null));
+            return;
+        }
+
+        if (_engine.IsRunning)
         {
             if (Busy && !await _main.Ask(L.T("busy.stop"), yesNo: true)) return;
             StopReceiver();
@@ -189,66 +246,45 @@ public partial class ReceiveView : UserControl
             }
         }
 
-        var receiver = new Receiver { DestinationRoot = settings.DestinationRoot, FixedCode = settings.FixedCode.Length == 6, Name = Platform.DeviceName };
-        if (receiver.FixedCode) receiver.SetCode(settings.FixedCode);
-        receiver.Log += m => Dispatcher.UIThread.Post(() => Log(m));
-        receiver.CodeChanged += () => Dispatcher.UIThread.Post(ShowCode);
-        receiver.SessionStarted += s => Dispatcher.UIThread.Post(() =>
+        var error = await _engine.StartAsync(settings.DestinationRoot, settings.FixedCode.Length == 6 ? settings.FixedCode : null);
+        if (error != null)
         {
-            RowFor(s);
-            _main.Host.Notify(L.T("recv.notifyStartTitle"), L.T("recv.notifyStart", s.SenderName));
-        });
-        receiver.FileReceived += (_, path, size) =>
-        {
-            // Arquivos grandes aparecem um a um na atividade; os pequenos só no total, para não inundar.
-            if (size >= LogFileMinSize) Dispatcher.UIThread.Post(() => Log(L.T("recv.fileDone", path, Format.Bytes(size))));
-        };
-        receiver.SessionEnded += (s, r) => Dispatcher.UIThread.Post(() => SessionEnded(s, r));
-        try
-        {
-            receiver.Start();
-        }
-        catch (SocketException ex)
-        {
-            await _main.Ask(L.T("recv.portError", Protocol.DefaultPort, ex.Message), error: true);
+            await _main.Ask(error, error: true);
             return;
         }
-        _receiver = receiver;
         _multicast = Platform.AcquireMulticast?.Invoke();
         _main.Host.KeepAwake(true);
         _refresh.Start();
-        ShowCode();
         ShowMachine();
         Log(L.T("recv.waiting", Protocol.DefaultPort));
     }
 
     public void StopReceiver()
     {
-        if (_receiver == null) return;
-        _receiver.Stop();
-        _receiver = null;
+        if (_engine.IsService || !_engine.IsRunning) return;
+        _ = _engine.StopAsync();
         _refresh.Stop();
         _multicast?.Dispose();
         _multicast = null;
         _main.Host.KeepAwake(false);
-        ShowCode();
     }
 
-    /// <summary>Código fixo ligado/desligado pela tela de configurações.</summary>
+    /// <summary>Código fixo ligado/desligado pela tela de configurações (no serviço o código é sempre fixo).</summary>
     public void FixedCodeChanged(bool on)
     {
-        _main.Settings.FixedCode = on ? (_receiver?.Code ?? Protocol.NewCode()) : "";
+        if (_engine.IsService) return;
+        _main.Settings.FixedCode = on ? (_engine.IsRunning ? _engine.Code : Protocol.NewCode()) : "";
         _main.Settings.Save();
-        if (_receiver != null) _receiver.FixedCode = on;
+        _engine.SetFixed(on);
         ShowCode();
     }
 
-    private SessionRow RowFor(ReceiveSession s)
+    private SessionRow RowFor(SessionSnapshot s)
     {
-        if (!_rows.TryGetValue(s, out var row))
+        if (!_rows.TryGetValue(s.Id, out var row))
         {
-            row = new SessionRow(s.SenderName);
-            _rows[s] = row;
+            row = new SessionRow(s.Sender);
+            _rows[s.Id] = row;
             Sessions.Children.Insert(0, row.Root);
             UpdateEmptyState();
         }
@@ -261,15 +297,15 @@ public partial class ReceiveView : UserControl
         ClearButton.IsVisible = _finished.Count > 0;
     }
 
-    private void SessionEnded(ReceiveSession s, TransferResult r)
+    private void SessionEnded(SessionSnapshot s, SessionEnd r)
     {
         // A cópia continua na lista com o resumo, em vez de sumir (arquivos pequenos terminam num piscar).
         var row = RowFor(s);
-        _rows.Remove(s);
+        _rows.Remove(s.Id);
         row.Bar.Value = 1000;
         row.File.Text = "";
         row.File.IsVisible = false;
-        row.Text.Text = L.T("recv.doneStatus", s.SenderName, r.FilesOk, Format.Bytes(s.Stats.BytesDone), s.Stats.SkippedFiles, r.FilesFailed);
+        row.Text.Text = L.T("recv.doneStatus", s.Sender, r.FilesOk, Format.Bytes(r.Bytes), r.Skipped, r.FilesFailed);
         row.State.Text = L.T(r.FilesFailed > 0 ? "recv.withFailures" : "recv.done");
         row.Pill.Classes.Set("ok", r.FilesFailed == 0);
         _finished.Add(row);
@@ -283,20 +319,19 @@ public partial class ReceiveView : UserControl
         Log(row.Text.Text);
         foreach (var e in r.Errors) Log(L.T("send.failLine", e));
         _main.Host.Notify(L.T("recv.notifyDoneTitle"), r.FilesFailed > 0
-            ? L.T("recv.notifyDoneFail", s.SenderName, r.FilesOk, r.FilesFailed)
-            : L.T("recv.notifyDone", s.SenderName, r.FilesOk));
+            ? L.T("recv.notifyDoneFail", s.Sender, r.FilesOk, r.FilesFailed)
+            : L.T("recv.notifyDone", s.Sender, r.FilesOk));
     }
 
     private void RefreshSessions()
     {
-        if (_receiver == null) return;
-        foreach (var s in _receiver.ActiveSessions)
+        foreach (var s in _engine.Active)
         {
             var row = RowFor(s);
-            var (desc, value) = ProgressText.Describe(s.Stats, row.Meter);
+            var (desc, value) = ProgressText.Describe(s, row.Meter);
             row.Text.Text = desc;
             row.Bar.Value = value;
-            row.File.Text = s.Stats.CurrentFile;
+            row.File.Text = s.CurrentFile;
         }
     }
 

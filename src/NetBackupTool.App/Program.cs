@@ -9,8 +9,27 @@ namespace NetBackupTool;
 static class Program
 {
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
+        // Versão instalada: o mesmo executável é o serviço do Windows e o instalador o registra.
+        if (OperatingSystem.IsWindows() && args.Length > 0)
+        {
+            switch (args[0])
+            {
+                case AgentSetup.RunArg:
+                    System.ServiceProcess.ServiceBase.Run(new AgentWindowsService());
+                    return 0;
+                case AgentSetup.ConsoleArg:
+                    return AgentSetup.RunConsole();
+                case AgentSetup.InstallArg:
+                    return AgentSetup.Install(args.Length > 1 ? args[1] : null);
+                case AgentSetup.RemoveArg:
+                    return AgentSetup.Remove();
+                case NetBackupTool.Agent.AgentClient.CmdArg when args.Length > 1:
+                    return AgentSetup.Command(args[1], args.Length > 2 ? args[2] : null);
+            }
+        }
+
         var settings = Settings.Load();
         L.Set(settings.Language);
         bool Has(string a) => args.Any(x => x.Trim('-', '/').Equals(a, StringComparison.OrdinalIgnoreCase));
@@ -20,14 +39,14 @@ static class Program
         if (args.Length >= 3 && args[0] == Updater.FinishArg && int.TryParse(args[2], out var oldPid))
         {
             finishError = Updater.Finish(args[1], oldPid, args.Skip(3).ToArray());
-            if (finishError == null) return;
+            if (finishError == null) return 0;
         }
 
         var handoff = Handoff.FromArgs(args);
         if (finishError == null)
         {
             if (Has("reiniciar")) SingleInstance.WaitForPreviousToExit(TimeSpan.FromSeconds(15));
-            else if (handoff == null && SingleInstance.SignalExisting()) return; // já aberto: só mostra a janela
+            else if (handoff == null && SingleInstance.SignalExisting()) return 0; // já aberto: só mostra a janela
             Updater.CleanupOld();
         }
 
@@ -35,7 +54,7 @@ static class Program
         App.Settings = settings;
         App.Options = new StartOptions(Has("receber"), Has("bandeja") && settings.KeepInTray, handoff, finishError);
         App.Startup = Start;
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
     }
 
     private static void Start(Application app, IApplicationLifetime? lifetime)
