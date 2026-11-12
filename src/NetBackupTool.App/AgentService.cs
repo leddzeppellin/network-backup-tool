@@ -192,20 +192,37 @@ public sealed class AgentCore : IDisposable
                 var req = line == null ? null : JsonSerializer.Deserialize<AgentRequest>(line);
                 if (req == null) return;
                 bool isAdmin = false;
+                Exception? failure = null;
                 if (!AgentClient.ReadCommands.Contains(req.Cmd))
                 {
                     // Vê o token de quem conectou: com o UAC, só o app elevado conta como administrador.
-                    pipe.RunAsClient(() =>
+                    try
                     {
-                        using var id = WindowsIdentity.GetCurrent();
-                        isAdmin = new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator);
-                    });
+                        pipe.RunAsClient(() =>
+                        {
+                            using var id = WindowsIdentity.GetCurrent();
+                            isAdmin = new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator);
+                        });
+                    }
+                    catch (Exception ex) { failure = ex; }
                 }
                 AgentResponse resp;
-                if (req.Cmd == "shares-overview")
-                    resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
-                else
-                    lock (this) resp = Handle(req, isAdmin);
+                try
+                {
+                    if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failure); // mantém onde aconteceu
+                    if (req.Cmd == "shares-overview")
+                        resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
+                    else
+                        lock (this) resp = Handle(req, isAdmin);
+                }
+                catch (Exception ex)
+                {
+                    // Erro inesperado: volta para quem pediu (e fica no histórico), em vez de fechar a conexão calado.
+                    var where = ex.StackTrace?.Split('\n').FirstOrDefault()?.Trim();
+                    var msg = $"{ex.GetType().Name}: {ex.Message} ({where})";
+                    Add("log", msg);
+                    resp = new AgentResponse(false, msg);
+                }
                 await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
             }
             catch { /* cliente sumiu */ }
