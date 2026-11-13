@@ -100,12 +100,14 @@ public sealed class ShareConfig
     public string ToJson() => JsonSerializer.Serialize(this);
 
     /// <summary>Nomes válidos para Windows (contas, grupos, pastas). Devolve a mensagem de erro ou null.</summary>
+    /// <summary>Nome que o Windows não aceita (login: até 20 caracteres, sem espaço nem @).</summary>
+    public static bool BadName(string s, bool login) =>
+        string.IsNullOrWhiteSpace(s) || s.Length > (login ? 20 : 60) ||
+        s.IndexOfAny(login ? "\"/\\[]:;|=,+*?<>@ ".ToCharArray() : "\"/\\[]:;|=,+*?<>".ToCharArray()) >= 0 ||
+        s.Trim() != s || s.EndsWith('.');
+
     public string? Validate()
     {
-        static bool BadName(string s, bool login) =>
-            string.IsNullOrWhiteSpace(s) || s.Length > (login ? 20 : 60) ||
-            s.IndexOfAny(login ? "\"/\\[]:;|=,+*?<>@ ".ToCharArray() : "\"/\\[]:;|=,+*?<>".ToCharArray()) >= 0 ||
-            s.Trim() != s || s.EndsWith('.');
 
         if (Root.Length > 0 && !Path.IsPathFullyQualified(Root)) return "Root";
         if (BadName(ShareName, false)) return ShareName;

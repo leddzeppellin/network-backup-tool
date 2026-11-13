@@ -330,9 +330,14 @@ public partial class ServerView : UserControl
     {
         var login = (NewLoginBox.Text ?? "").Trim();
         var password = NewPasswordBox.Text ?? "";
-        if (login.Length == 0 || _draft.Users.Any(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase)))
+        if (ShareConfig.BadName(login, true))
         {
-            await _main.Ask(L.T("srv.invalidName", login), error: true);
+            await _main.Ask(L.T("srv.invalidLogin", login), error: true);
+            return;
+        }
+        if (_draft.Users.Any(u => u.Login.Equals(login, StringComparison.OrdinalIgnoreCase)))
+        {
+            await _main.Ask(L.T("srv.dupLogin", login), error: true);
             return;
         }
         if (password.Length < 6)
@@ -434,7 +439,8 @@ public partial class ServerView : UserControl
         }
         if (_draft.Validate() is { } bad)
         {
-            await _main.Ask(L.T("srv.invalidName", bad), error: true);
+            // Login com espaço etc.: diz o que pode; nos outros casos, o nome que está errado.
+            await _main.Ask(_draft.Users.Any(u => u.Login == bad) ? L.T("srv.invalidLogin", bad) : L.T("srv.invalidName", bad), error: true);
             return;
         }
         ApplyButton.IsEnabled = DiscardButton.IsEnabled = false;
