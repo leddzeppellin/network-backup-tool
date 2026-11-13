@@ -66,7 +66,7 @@
     <!-- Abas embaixo (telas estreitas: celular) -->
     <Border x:Name="BottomBar" Grid.Row="1" Grid.ColumnSpan="2" IsVisible="False"
             Background="{DynamicResource SideBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,1,0,0">
-      <UniformGrid Columns="4" Margin="4,4,4,6">
+      <UniformGrid x:Name="TabGrid" Columns="4" Margin="4,4,4,6">
         <Button x:Name="TabSend" Classes="tab">
           <StackPanel Spacing="3" HorizontalAlignment="Center">
             <PathIcon Data="{StaticResource IconUpload}" Width="20" Height="20" />
@@ -77,6 +77,12 @@
           <StackPanel Spacing="3" HorizontalAlignment="Center">
             <PathIcon Data="{StaticResource IconDownload}" Width="20" Height="20" />
             <TextBlock Text="{l:T nav.receive}" FontSize="11" HorizontalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="TabCompany" Classes="tab" IsVisible="False">
+          <StackPanel Spacing="3" HorizontalAlignment="Center">
+            <PathIcon Data="{StaticResource IconFolder}" Width="20" Height="20" />
+            <TextBlock Text="{l:T nav.companyShort}" FontSize="11" HorizontalAlignment="Center" />
           </StackPanel>
         </Button>
         <Button x:Name="TabSettings" Classes="tab">

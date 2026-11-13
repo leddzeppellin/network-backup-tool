@@ -28,7 +28,12 @@ public partial class StationView : UserControl
         InitializeComponent();
         if (main == null) return;
 
-        if (!Platform.IsWindows)
+        if (Platform.IsAndroid)
+        {
+            ConnectText.Text = L.T("sta.connectTextAndroid");
+            SetupBrowser();
+        }
+        else if (!Platform.IsWindows)
         {
             // Finder / gerenciador de arquivos pedem a senha e guardam no chaveiro do sistema.
             PasswordLabel.IsVisible = PasswordBox.IsVisible = false;
@@ -53,23 +58,27 @@ public partial class StationView : UserControl
             ShareBox.Text = _config.Share;
             LoginBox.Text = _config.Login;
         }
+        if (Platform.IsAndroid) ResumeBrowser();
         Render();
         // Ao abrir o programa: religa a unidade e acerta os atalhos que o administrador mudou.
         if (_config is { Drive.Length: > 0 } && Platform.IsWindows) _ = Refresh(sync: true);
 
         AttachedToVisualTree += async (_, _) =>
         {
-            if (_config is not { Drive.Length: > 0 }) await Search();
+            if (Platform.IsAndroid) { if (_browser == null) await Search(); else await LoadFolder(_path); }
+            else if (_config is not { Drive.Length: > 0 }) await Search();
             else await Refresh(sync: false);
         };
     }
 
-    private bool Connected => _config is { Drive.Length: > 0 };
+    private bool Connected => Platform.IsAndroid ? _browser != null : _config is { Drive.Length: > 0 };
 
     private void Render()
     {
         ConnectCard.IsVisible = !Connected;
-        ConnectedPanel.IsVisible = Connected;
+        ConnectedPanel.IsVisible = Connected && !Platform.IsAndroid;
+        BrowserPanel.IsVisible = Connected && Platform.IsAndroid;
+        if (Platform.IsAndroid) return;
         if (!Connected || _config == null) return;
         ConnectedTitle.Text = L.T("sta.connectedTitle", _config.Drive, _config.Share);
         ConnectedText.Text = L.T("sta.connectedText", _config.Unc, _config.Login);
@@ -84,8 +93,12 @@ public partial class StationView : UserControl
         SearchingText.IsVisible = true;
         ServerChips.Children.Clear();
         List<DiscoveredReceiver> found;
-        try { found = await Discovery.FindAsync(TimeSpan.FromSeconds(1.5)); }
-        catch { found = new(); }
+        // Android: o Wi-Fi só entrega as respostas de broadcast com o "multicast lock".
+        using (Platform.AcquireMulticast?.Invoke())
+        {
+            try { found = await Discovery.FindAsync(TimeSpan.FromSeconds(1.5)); }
+            catch { found = new(); }
+        }
         var servers = found.Where(r => r.Share != null && !r.Name.Equals(Platform.DeviceName, StringComparison.OrdinalIgnoreCase)).ToList();
         SearchButton.IsEnabled = true;
         SearchingText.IsVisible = servers.Count == 0;
@@ -131,12 +144,17 @@ public partial class StationView : UserControl
         var share = (ShareBox.Text ?? "").Trim();
         var login = (LoginBox.Text ?? "").Trim();
         var password = PasswordBox.Text ?? "";
-        if (server.Length == 0 || share.Length == 0 || login.Length == 0 || (Platform.IsWindows && password.Length == 0))
+        if (server.Length == 0 || share.Length == 0 || login.Length == 0 || ((Platform.IsWindows || Platform.IsAndroid) && password.Length == 0))
         {
             Status(L.T("sta.fillAll"), error: true);
             return;
         }
 
+        if (Platform.IsAndroid)
+        {
+            await ConnectBrowser(server, _picked?.Address, share, login, password);
+            return;
+        }
         if (!Platform.IsWindows)
         {
             new StationConfig { Server = server, Share = share, Login = login }.Save();

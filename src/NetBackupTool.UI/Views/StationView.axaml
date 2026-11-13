@@ -71,6 +71,37 @@
           </StackPanel>
         </Border>
       </StackPanel>
+
+      <!-- Celular: navegador das pastas dentro do app -->
+      <StackPanel x:Name="BrowserPanel" Spacing="12" IsVisible="False">
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <DockPanel>
+              <Button x:Name="UpButton" DockPanel.Dock="Left" Padding="10,4" Margin="0,0,10,0" IsVisible="False">
+                <TextBlock Text="‹" FontSize="20" Margin="0,-4,0,0" />
+              </Button>
+              <TextBlock x:Name="PathText" Classes="h2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+            <WrapPanel>
+              <Button x:Name="UploadButton" Classes="accent" Content="{l:T sta.upload}" Margin="0,0,8,8" />
+              <Button x:Name="NewFolderButton" Content="{l:T sta.newFolder}" Margin="0,0,8,8" />
+              <Button x:Name="BrowserDisconnectButton" Content="{l:T sta.disconnect}" Margin="0,0,8,8" />
+            </WrapPanel>
+            <DockPanel x:Name="NewFolderRow" IsVisible="False">
+              <Button x:Name="CreateFolderButton" DockPanel.Dock="Right" Classes="accent" Content="{l:T sta.create}" Margin="8,0,0,0" />
+              <TextBox x:Name="NewFolderNameBox" Watermark="{l:T srv.newFolder}" />
+            </DockPanel>
+            <TextBlock x:Name="BrowserStatus" Classes="muted" TextWrapping="Wrap" IsVisible="False" />
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="6">
+          <StackPanel>
+            <TextBlock x:Name="EmptyText" Classes="muted" Text="{l:T sta.empty}" Margin="12" IsVisible="False" />
+            <StackPanel x:Name="EntryList" />
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="caption" Text="{l:T sta.editNote}" TextWrapping="Wrap" />
+      </StackPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

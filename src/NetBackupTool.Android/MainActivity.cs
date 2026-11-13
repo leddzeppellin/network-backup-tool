@@ -42,6 +42,10 @@ public class MainActivity : AvaloniaMainActivity<App>, IAppHost
         Platform.AcquireMulticast = AcquireMulticast;
         Platform.OpenUrlHook = url => StartActivity(new Intent(Intent.ActionView, AndroidUri.Parse(url)));
         Platform.OpenFolderHook = OpenFolder;
+        Platform.OpenFileHook = OpenFile;
+        Platform.SaveSecret = (k, v) => AndroidSecrets.Save(this, k, v);
+        Platform.LoadSecret = k => AndroidSecrets.Load(this, k);
+        Platform.CacheDir = CacheDir?.AbsolutePath;
         App.Startup = (_, lifetime) =>
         {
             if (lifetime is ISingleViewApplicationLifetime single)
@@ -95,6 +99,7 @@ public class MainActivity : AvaloniaMainActivity<App>, IAppHost
         base.OnResume();
         _storageWait?.TrySetResult(HasStorageAccess());
         _storageWait = null;
+        Dispatcher.UIThread.Post(Platform.RaiseResumed);
     }
 
     public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Permission[] grantResults)
@@ -140,6 +145,30 @@ public class MainActivity : AvaloniaMainActivity<App>, IAppHost
         catch (Exception)
         {
             Android.Widget.Toast.MakeText(this, path, Android.Widget.ToastLength.Long)?.Show();
+        }
+    }
+
+    /// <summary>Abre uma cópia local no app escolhido pelo usuário, que pode salvar por cima dela.</summary>
+    private void OpenFile(string path)
+    {
+        try
+        {
+            var file = new Java.IO.File(path);
+            var uri = AndroidX.Core.Content.FileProvider.GetUriForFile(this, "io.github.leddzeppellin.netbackuptool.files", file);
+            var ext = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+            var mime = Android.Webkit.MimeTypeMap.Singleton?.GetMimeTypeFromExtension(ext) ?? "*/*";
+            var intent = new Intent(Intent.ActionView);
+            intent.SetDataAndType(uri, mime);
+            intent.AddFlags(ActivityFlags.GrantReadUriPermission | ActivityFlags.GrantWriteUriPermission);
+            StartActivity(intent);
+        }
+        catch (ActivityNotFoundException)
+        {
+            Android.Widget.Toast.MakeText(this, L.T("sta.noApp"), Android.Widget.ToastLength.Long)?.Show();
+        }
+        catch (Exception ex)
+        {
+            Android.Widget.Toast.MakeText(this, ex.Message, Android.Widget.ToastLength.Long)?.Show();
         }
     }
 

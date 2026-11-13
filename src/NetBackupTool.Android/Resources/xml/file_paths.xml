@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cópias dos arquivos do servidor abertas em outros apps (Word, Excel, leitor de PDF...). -->
+<paths>
+  <cache-path name="empresa" path="empresa/" />
+</paths>

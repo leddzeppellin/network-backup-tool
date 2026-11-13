@@ -12,6 +12,8 @@ namespace NetBackupTool.Agent;
 public sealed class StationConfig
 {
     public string Server { get; set; } = "";
+    /// <summary>Android: endereço IP achado na busca (o celular não resolve nomes de computador Windows).</summary>
+    public string? Address { get; set; }
     public string Share { get; set; } = "";
     public string Login { get; set; } = "";
     /// <summary>Letra da unidade, ex.: "Z:".</summary>

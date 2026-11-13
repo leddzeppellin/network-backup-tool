@@ -61,11 +61,14 @@ public partial class MainView : UserControl
             NavServer.IsVisible = true;
             NavServer.Click += (_, _) => Navigate(_serverPage);
         }
-        else if (host != null && host.IsDesktop)
+        else if (host != null)
         {
+            // Computador da equipe ou celular: liga às pastas da empresa no servidor.
             _stationPage = new StationView(this);
-            NavCompany.IsVisible = true;
+            NavCompany.IsVisible = TabCompany.IsVisible = true;
+            TabGrid.Columns = 5;
             NavCompany.Click += (_, _) => Navigate(_stationPage);
+            TabCompany.Click += (_, _) => Navigate(_stationPage);
         }
 
         void Link(Button nav, Button tab, Control page)
@@ -105,6 +108,7 @@ public partial class MainView : UserControl
         }
         NavServer.Classes.Set("active", page == _serverPage && page != null);
         NavCompany.Classes.Set("active", page == _stationPage && page != null);
+        TabCompany.Classes.Set("active", page == _stationPage && page != null);
     }
 
     public void ShowReceivePage() => Navigate(ReceivePage);

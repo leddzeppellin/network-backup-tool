@@ -29,6 +29,16 @@ public static class Platform
     public static Func<IDisposable>? AcquireMulticast { get; set; }
     public static Action<string>? OpenUrlHook { get; set; }
     public static Action<string>? OpenFolderHook { get; set; }
+    /// <summary>Android: abre um arquivo local no app que o usuário escolher (com permissão de gravar de volta).</summary>
+    public static Action<string>? OpenFileHook { get; set; }
+    /// <summary>Android: senha guardada criptografada pelo Keystore. (chave, valor ou null para apagar)</summary>
+    public static Action<string, string?>? SaveSecret { get; set; }
+    public static Func<string, string?>? LoadSecret { get; set; }
+    /// <summary>Android: pasta de cache do app (cópias abertas dos arquivos do servidor).</summary>
+    public static string? CacheDir { get; set; }
+    /// <summary>Android: chamado quando o app volta para a frente (ex.: depois de editar um arquivo em outro app).</summary>
+    public static event Action? Resumed;
+    public static void RaiseResumed() => Resumed?.Invoke();
 
     /// <summary>
     /// Caminho local de um item escolhido no seletor. No Android o seletor devolve endereços
