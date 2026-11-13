@@ -109,6 +109,10 @@ public partial class StationView
         }
         finally { _browserBusy = false; }
         UpButton.IsVisible = _path.Length > 0;
+        // A raiz é só das pastas que o administrador cria: ninguém grava ali.
+        UploadButton.IsVisible = NewFolderButton.IsVisible = _path.Length > 0;
+        if (_path.Length == 0) NewFolderRow.IsVisible = false;
+        RootHint.IsVisible = _path.Length == 0 && BrowserStatus.IsVisible == false;
         PathText.Text = _path.Length == 0 ? _config?.Share ?? "" : _path.Replace("\\", " › ");
         RenderEntries();
     }

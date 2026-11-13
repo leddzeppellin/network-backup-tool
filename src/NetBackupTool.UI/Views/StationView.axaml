@@ -99,6 +99,7 @@
               <Button x:Name="CreateFolderButton" DockPanel.Dock="Right" Classes="accent" Content="{l:T sta.create}" Margin="8,0,0,0" />
               <TextBox x:Name="NewFolderNameBox" Watermark="{l:T srv.newFolder}" />
             </DockPanel>
+            <TextBlock x:Name="RootHint" Classes="muted" Text="{l:T sta.rootHint}" TextWrapping="Wrap" IsVisible="False" />
             <TextBlock x:Name="BrowserStatus" Classes="muted" TextWrapping="Wrap" IsVisible="False" />
           </StackPanel>
         </Border>

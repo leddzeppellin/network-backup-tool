@@ -103,12 +103,12 @@ public sealed class SmbBrowser : IDisposable
         return _store!;
     }
 
-    private static void Check(NTStatus status)
+    private static void Check(NTStatus status, bool writing = false)
     {
         if (status == NTStatus.STATUS_SUCCESS) return;
         throw new IOException(status switch
         {
-            NTStatus.STATUS_ACCESS_DENIED => L.T("sta.denied"),
+            NTStatus.STATUS_ACCESS_DENIED => L.T(writing ? "sta.noWrite" : "sta.noRead"),
             NTStatus.STATUS_OBJECT_NAME_NOT_FOUND or NTStatus.STATUS_OBJECT_PATH_NOT_FOUND => L.T("sta.notFound"),
             NTStatus.STATUS_SHARING_VIOLATION => L.T("sta.inUse"),
             NTStatus.STATUS_OBJECT_NAME_COLLISION => L.T("sta.exists"),
@@ -143,7 +143,7 @@ public sealed class SmbBrowser : IDisposable
     {
         var store = Store();
         Check(store.CreateFile(out var handle, out _, path, AccessMask.GENERIC_WRITE, FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write, CreateDisposition.FILE_CREATE, CreateOptions.FILE_DIRECTORY_FILE, null));
+            ShareAccess.Read | ShareAccess.Write, CreateDisposition.FILE_CREATE, CreateOptions.FILE_DIRECTORY_FILE, null), writing: true);
         store.CloseFile(handle);
         return true;
     });
@@ -182,7 +182,7 @@ public sealed class SmbBrowser : IDisposable
     {
         var store = Store();
         Check(store.CreateFile(out var handle, out _, path, AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE, FileAttributes.Normal,
-            ShareAccess.None, CreateDisposition.FILE_OVERWRITE_IF, CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT, null));
+            ShareAccess.None, CreateDisposition.FILE_OVERWRITE_IF, CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT, null), writing: true);
         try
         {
             var buffer = new byte[(int)Math.Min(_client!.MaxWriteSize, 1024 * 1024)];
@@ -191,7 +191,7 @@ public sealed class SmbBrowser : IDisposable
             while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
             {
                 var data = n == buffer.Length ? buffer : buffer[..n];
-                Check(store.WriteFile(out var written, handle, offset, data));
+                Check(store.WriteFile(out var written, handle, offset, data), writing: true);
                 offset += written;
                 progress?.Report(offset);
             }
