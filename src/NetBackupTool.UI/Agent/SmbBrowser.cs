@@ -47,6 +47,8 @@ public sealed class SmbBrowser : IDisposable
         var status = client.Login("", _login, _password);
         if (status != NTStatus.STATUS_SUCCESS)
         {
+            // Diagnóstico (logcat no Android): o código exato que o servidor devolveu.
+            Console.Error.WriteLine($"NBT SMB login {_login}@{ip}: {status}");
             client.Disconnect();
             return status switch
             {
@@ -129,7 +131,7 @@ public sealed class SmbBrowser : IDisposable
             return (items ?? new())
                 .OfType<FileDirectoryInformation>()
                 .Where(i => i.FileName != "." && i.FileName != ".." && !i.FileAttributes.HasFlag(FileAttributes.Hidden))
-                .Select(i => new SmbEntry(i.FileName, i.FileAttributes.HasFlag(FileAttributes.Directory), i.EndOfFile, i.LastWriteTime))
+                .Select(i => new SmbEntry(i.FileName, i.FileAttributes.HasFlag(FileAttributes.Directory), i.EndOfFile, i.LastWriteTime.ToLocalTime()))
                 .OrderByDescending(e => e.IsFolder)
                 .ThenBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();

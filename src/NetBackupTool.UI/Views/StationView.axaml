@@ -35,13 +35,13 @@
             </Grid.ColumnDefinitions>
           <StackPanel Spacing="4">
             <TextBlock Text="{l:T sta.server}" />
-            <TextBox x:Name="ServerBox" Watermark="{l:T sta.serverHint}" Margin="0,0,0,8" />
+            <TextBox x:Name="ServerBox" Watermark="{l:T sta.serverHint}" TextInputOptions.ContentType="Url" TextInputOptions.AutoCapitalization="False" TextInputOptions.ShowSuggestions="False" Margin="0,0,0,8" />
             <TextBlock Text="{l:T srv.shareName}" />
-            <TextBox x:Name="ShareBox" Text="Empresa" Margin="0,0,0,8" />
+            <TextBox x:Name="ShareBox" Text="Empresa" TextInputOptions.AutoCapitalization="False" TextInputOptions.ShowSuggestions="False" Margin="0,0,0,8" />
             <TextBlock Text="{l:T srv.login}" />
-            <TextBox x:Name="LoginBox" Margin="0,0,0,8" />
+            <TextBox x:Name="LoginBox" TextInputOptions.AutoCapitalization="False" TextInputOptions.ShowSuggestions="False" Margin="0,0,0,8" />
             <TextBlock x:Name="PasswordLabel" Text="{l:T srv.password}" />
-            <TextBox x:Name="PasswordBox" PasswordChar="●" />
+            <TextBox x:Name="PasswordBox" PasswordChar="●" Classes="revealPasswordButton" TextInputOptions.ContentType="Password" TextInputOptions.IsSensitive="True" TextInputOptions.AutoCapitalization="False" TextInputOptions.ShowSuggestions="False" />
           </StackPanel>
           </Grid>
 
