@@ -74,6 +74,9 @@ public sealed class ShareConfig
     public const string AllGroup = "NBT-Todos";
     public static string WindowsGroup(string name) => GroupPrefix + name;
 
+    /// <summary>Pasta oculta na raiz do compartilhamento com um arquivo por pessoa (os atalhos dela).</summary>
+    public const string InfoDir = ".nbt";
+
     public static string FilePath => Path.Combine(AgentConfig.Dir, "pastas.json");
 
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
@@ -106,7 +109,7 @@ public sealed class ShareConfig
         if (BadName(ShareName, false)) return ShareName;
         foreach (var g in Groups) if (BadName(g.Name, false) || g.Name.Length > 16) return g.Name;
         foreach (var u in Users) if (BadName(u.Login, true)) return u.Login;
-        foreach (var f in Folders) if (BadName(f.Name, false)) return f.Name;
+        foreach (var f in Folders) if (BadName(f.Name, false) || f.Name.Equals(InfoDir, StringComparison.OrdinalIgnoreCase)) return f.Name;
         bool Dup(IEnumerable<string> names) => names.GroupBy(n => n, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1);
         if (Dup(Groups.Select(g => g.Name)) || Dup(Users.Select(u => u.Login)) || Dup(Folders.Select(f => f.Name))) return "dup";
         return null;
@@ -118,6 +121,17 @@ public sealed class ShareApplyRequest
 {
     public ShareConfig Config { get; set; } = new();
     public Dictionary<string, string> Passwords { get; set; } = new();
+}
+
+/// <summary>
+/// O que a estação lê no servidor, com a conta da própria pessoa: \\SERVIDOR\Empresa\.nbt\login.json.
+/// Só aquela pessoa consegue ler o arquivo dela.
+/// </summary>
+public sealed class StationInfo
+{
+    public string ShareName { get; set; } = "";
+    /// <summary>Pastas para fixar no Acesso rápido dessa pessoa.</summary>
+    public List<string> Pins { get; set; } = new();
 }
 
 public sealed record OpenFile(string User, string Path);

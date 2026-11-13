@@ -36,6 +36,8 @@ public partial class MainView : UserControl
     private readonly AboutView _aboutPage;
     /// <summary>Só na versão instalada como servidor.</summary>
     private readonly ServerView? _serverPage;
+    /// <summary>Computador que não é o servidor: liga às pastas da empresa.</summary>
+    private readonly StationView? _stationPage;
     private TaskCompletionSource<bool>? _overlay;
     private const double CompactWidth = 700;
 
@@ -58,6 +60,12 @@ public partial class MainView : UserControl
             _serverPage = new ServerView(this);
             NavServer.IsVisible = true;
             NavServer.Click += (_, _) => Navigate(_serverPage);
+        }
+        else if (host != null && host.IsDesktop)
+        {
+            _stationPage = new StationView(this);
+            NavCompany.IsVisible = true;
+            NavCompany.Click += (_, _) => Navigate(_stationPage);
         }
 
         void Link(Button nav, Button tab, Control page)
@@ -96,6 +104,7 @@ public partial class MainView : UserControl
             tabs[i].Classes.Set("active", pages[i] == page);
         }
         NavServer.Classes.Set("active", page == _serverPage && page != null);
+        NavCompany.Classes.Set("active", page == _stationPage && page != null);
     }
 
     public void ShowReceivePage() => Navigate(ReceivePage);

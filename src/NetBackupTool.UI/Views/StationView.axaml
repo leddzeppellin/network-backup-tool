@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:NetBackupTool"
+             x:Class="NetBackupTool.StationView">
+  <ScrollViewer>
+    <StackPanel Classes="page" Spacing="16" MaxWidth="820">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h1" Text="{l:T nav.company}" />
+        <TextBlock Classes="muted" Text="{l:T sta.subtitle}" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <TextBlock x:Name="ElevatedText" Classes="muted" Foreground="IndianRed" Text="{l:T sta.elevated}" TextWrapping="Wrap" IsVisible="False" />
+
+      <!-- Ainda não conectado -->
+      <Border x:Name="ConnectCard" Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h2" Text="{l:T sta.connectTitle}" />
+          <TextBlock x:Name="ConnectText" Classes="muted" Text="{l:T sta.connectText}" TextWrapping="Wrap" />
+
+          <StackPanel Spacing="6">
+            <DockPanel>
+              <Button x:Name="SearchButton" DockPanel.Dock="Right" Content="{l:T sta.searchAgain}" Padding="10,4" FontSize="12" />
+              <TextBlock Classes="caption" Text="{l:T sta.found}" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock x:Name="SearchingText" Classes="muted" Text="{l:T sta.searching}" />
+            <WrapPanel x:Name="ServerChips" />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+            <TextBlock Text="{l:T sta.server}" VerticalAlignment="Center" />
+            <TextBox x:Name="ServerBox" Grid.Column="1" Width="260" HorizontalAlignment="Left" Watermark="{l:T sta.serverHint}" />
+            <TextBlock Grid.Row="1" Text="{l:T srv.shareName}" VerticalAlignment="Center" />
+            <TextBox x:Name="ShareBox" Grid.Row="1" Grid.Column="1" Width="260" HorizontalAlignment="Left" Text="Empresa" />
+            <TextBlock Grid.Row="2" Text="{l:T srv.login}" VerticalAlignment="Center" />
+            <TextBox x:Name="LoginBox" Grid.Row="2" Grid.Column="1" Width="260" HorizontalAlignment="Left" />
+            <TextBlock x:Name="PasswordLabel" Grid.Row="3" Text="{l:T srv.password}" VerticalAlignment="Center" />
+            <TextBox x:Name="PasswordBox" Grid.Row="3" Grid.Column="1" Width="260" HorizontalAlignment="Left" PasswordChar="●" />
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button x:Name="ConnectButton" Classes="accent" Content="{l:T sta.connect}" MinWidth="120" HorizontalContentAlignment="Center" />
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="520" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Conectado -->
+      <StackPanel x:Name="ConnectedPanel" Spacing="16" IsVisible="False">
+        <Border Classes="card">
+          <StackPanel Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Ellipse Classes="dot on" Width="10" Height="10" VerticalAlignment="Center" />
+              <TextBlock x:Name="ConnectedTitle" Classes="h2" />
+            </StackPanel>
+            <TextBlock x:Name="ConnectedText" Classes="muted" TextWrapping="Wrap" />
+            <WrapPanel>
+              <Button x:Name="OpenButton" Classes="accent" Content="{l:T sta.open}" Margin="0,0,8,0" />
+              <Button x:Name="RefreshButton" Content="{l:T sta.refresh}" Margin="0,0,8,0" />
+              <Button x:Name="DisconnectButton" Content="{l:T sta.disconnect}" />
+            </WrapPanel>
+            <TextBlock x:Name="OfflineText" Classes="muted" Foreground="IndianRed" Text="{l:T sta.offline}" TextWrapping="Wrap" IsVisible="False" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h2" Text="{l:T sta.yourFolders}" />
+            <TextBlock x:Name="NoFoldersText" Classes="muted" Text="{l:T sta.noFolders}" TextWrapping="Wrap" IsVisible="False" />
+            <StackPanel x:Name="FolderList" Spacing="4" />
+            <TextBlock Classes="caption" Text="{l:T sta.pinsNote}" TextWrapping="Wrap" Margin="0,6,0,0" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

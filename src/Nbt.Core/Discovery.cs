@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Nbt.Core;
 
-public sealed record DiscoveredReceiver(string Name, string Address, int Port)
+public sealed record DiscoveredReceiver(string Name, string Address, int Port, string? Share = null)
 {
     public override string ToString() => $"{Name}  ({Address})";
 }
@@ -59,7 +59,7 @@ public static class Discovery
                 var parts = text[Reply.Length..].Split('|');
                 if (parts.Length < 2 || !int.TryParse(parts[1], out var port)) continue;
                 var address = res.RemoteEndPoint.Address.ToString();
-                found[address] = new DiscoveredReceiver(parts[0], address, port);
+                found[address] = new DiscoveredReceiver(parts[0], address, port, parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }

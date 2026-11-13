@@ -59,6 +59,9 @@ public sealed class AgentCore : IDisposable
         }
     }
 
+    /// <summary>Nome do compartilhamento já criado, para anunciar às estações.</summary>
+    private static string? SharedName() => ShareConfig.Load() is { Root.Length: > 0 } c ? c.ShareName : null;
+
     private string? StartReceiver()
     {
         if (_receiver != null) return null;
@@ -68,6 +71,7 @@ public sealed class AgentCore : IDisposable
             Directory.CreateDirectory(_config.DestinationRoot);
             var r = new Receiver { DestinationRoot = _config.DestinationRoot, FixedCode = true, Name = Environment.MachineName };
             r.SetCode(_config.Code);
+            r.Share = SharedName();
             r.Log += m => Add("log", m);
             r.SessionStarted += s => Add("start", null, s.Snapshot());
             r.FileReceived += (_, path, size) =>
@@ -113,6 +117,7 @@ public sealed class AgentCore : IDisposable
                 if (apply == null) return new AgentResponse(false, "?");
                 Add("log", L.T("srv.applying"));
                 error = ShareApplier.Apply(apply);
+                if (_receiver != null) _receiver.Share = SharedName();
                 Add("log", error == null ? L.T("srv.applied") : L.T("srv.applyFailed", error));
                 return new AgentResponse(error == null, error, Data: ShareConfig.Load().ToJson());
             case "start":

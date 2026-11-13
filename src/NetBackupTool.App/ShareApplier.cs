@@ -89,6 +89,9 @@ public static class ShareApplier
                 SetFolderAcl(path, f, cfg);
             });
 
+        // Atalhos de cada pessoa, lidos pelas estações.
+        Try(errors, ShareConfig.InfoDir, () => WriteStationInfo(cfg));
+
         // Compartilhamento.
         Try(errors, cfg.ShareName, () => EnsureShare(cfg, previous));
 
@@ -191,6 +194,42 @@ public static class ShareApplier
             }
         }
         new DirectoryInfo(path).SetAccessControl(sec);
+    }
+
+    /// <summary>
+    /// Raiz\.nbt\login.json para cada pessoa. A pasta fica oculta e só deixa passar (sem listar), e cada
+    /// arquivo só a própria pessoa lê: ninguém vê os nomes nem os atalhos dos colegas.
+    /// </summary>
+    private static void WriteStationInfo(ShareConfig cfg)
+    {
+        var dir = new DirectoryInfo(Path.Combine(cfg.Root, ShareConfig.InfoDir));
+        dir.Create();
+        dir.Attributes |= FileAttributes.Hidden;
+        var dsec = BaseSecurity();
+        dsec.AddAccessRule(new FileSystemAccessRule(Sid(ShareConfig.AllGroup), FileSystemRights.Traverse,
+            InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
+        dir.SetAccessControl(dsec);
+
+        var logins = new HashSet<string>(cfg.Users.Select(u => u.Login), StringComparer.OrdinalIgnoreCase);
+        foreach (var old in dir.GetFiles("*.json").Where(f => !logins.Contains(Path.GetFileNameWithoutExtension(f.Name))))
+            old.Delete();
+
+        foreach (var u in cfg.Users)
+        {
+            var info = new StationInfo
+            {
+                ShareName = cfg.ShareName,
+                Pins = cfg.Folders.Where(f => f.PinFor.Contains(u.Login, StringComparer.OrdinalIgnoreCase)).Select(f => f.Name).ToList(),
+            };
+            var file = new FileInfo(Path.Combine(dir.FullName, u.Login + ".json"));
+            File.WriteAllText(file.FullName, System.Text.Json.JsonSerializer.Serialize(info));
+            var fsec = new FileSecurity();
+            fsec.SetAccessRuleProtection(true, false);
+            fsec.AddAccessRule(new FileSystemAccessRule(SystemSid, FileSystemRights.FullControl, AccessControlType.Allow));
+            fsec.AddAccessRule(new FileSystemAccessRule(AdminsSid, FileSystemRights.FullControl, AccessControlType.Allow));
+            fsec.AddAccessRule(new FileSystemAccessRule(Sid(u.Login), FileSystemRights.Read, AccessControlType.Allow));
+            file.SetAccessControl(fsec);
+        }
     }
 
     // ---------------------------------------------------------------- SMB

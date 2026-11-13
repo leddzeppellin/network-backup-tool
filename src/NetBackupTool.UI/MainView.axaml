@@ -45,6 +45,12 @@
               <Ellipse x:Name="ReceivingDot" Classes="dot on" Width="8" Height="8" IsVisible="False" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+          <Button x:Name="NavCompany" Classes="nav" IsVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{StaticResource IconFolder}" Width="16" Height="16" />
+              <TextBlock Text="{l:T nav.company}" />
+            </StackPanel>
+          </Button>
           <Button x:Name="NavServer" Classes="nav" IsVisible="False">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <PathIcon Data="{StaticResource IconComputer}" Width="16" Height="16" />

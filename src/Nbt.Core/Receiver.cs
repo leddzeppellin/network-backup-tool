@@ -56,6 +56,8 @@ public sealed class Receiver : IDisposable
     public string Code { get; private set; } = Protocol.NewCode();
     public int Port { get; init; } = Protocol.DefaultPort;
     public string Name { get; init; } = Environment.MachineName;
+    /// <summary>Compartilhamento de pastas deste servidor, anunciado na descoberta (estações se conectam a ele).</summary>
+    public string? Share { get; set; }
 
     public event Action<string>? Log;
     public event Action? CodeChanged;
@@ -114,12 +116,13 @@ public sealed class Receiver : IDisposable
 
     private async Task DiscoveryLoop(CancellationToken ct)
     {
-        var reply = Encoding.UTF8.GetBytes($"{Discovery.Reply}{Name}|{Port}");
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 var res = await _discovery!.ReceiveAsync(ct);
+                // Versões antigas leem só os dois primeiros campos.
+                var reply = Encoding.UTF8.GetBytes($"{Discovery.Reply}{Name}|{Port}" + (Share is { Length: > 0 } s ? $"|{s}" : ""));
                 if (Encoding.UTF8.GetString(res.Buffer) == Discovery.Request)
                     await _discovery.SendAsync(reply, res.RemoteEndPoint, ct);
             }

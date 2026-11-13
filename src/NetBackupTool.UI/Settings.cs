@@ -23,10 +23,10 @@ public sealed class Settings
     public string Theme { get; set; } = "system";
 
     // NBT_CONFIG_DIR aponta para outra pasta de configurações (testes sem tocar nas do usuário).
-    private static string FilePath => Path.Combine(
-        Environment.GetEnvironmentVariable("NBT_CONFIG_DIR")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool"),
-        "settings.json");
+    public static string Dir => Environment.GetEnvironmentVariable("NBT_CONFIG_DIR")
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetBackupTool");
+
+    private static string FilePath => Path.Combine(Dir, "settings.json");
 
     public static Settings Load()
     {
