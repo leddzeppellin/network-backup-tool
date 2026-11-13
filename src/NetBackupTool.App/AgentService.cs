@@ -249,7 +249,11 @@ public sealed class AgentCore : IDisposable
             if (req.Cmd == "dirs")
             {
                 // Pastas que já existem dentro de um caminho do servidor (escolha da pasta da empresa à distância).
-                if (!isAdmin) return new AgentResponse(false, L.T("svc.needAdmin"));
+                // Sem ser administrador, só a pasta da empresa já configurada (os nomes das pastas dela
+                // já estão na configuração, que qualquer um deste PC lê); outro caminho, só administrador.
+                var root = ShareConfig.Load().Root;
+                bool ownRoot = root.Length > 0 && !string.IsNullOrWhiteSpace(req.Arg) && string.Equals(Path.GetFullPath(req.Arg ?? "").TrimEnd('\\'), root.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+                if (!isAdmin && !ownRoot) return new AgentResponse(false, L.T("svc.needAdmin"));
                 if (string.IsNullOrWhiteSpace(req.Arg) || !Directory.Exists(req.Arg)) return new AgentResponse(false, L.T("rem.noPath", req.Arg ?? ""));
                 return new AgentResponse(true, Data: JsonSerializer.Serialize(Directory.EnumerateDirectories(req.Arg).Select(Path.GetFileName).ToList()));
             }

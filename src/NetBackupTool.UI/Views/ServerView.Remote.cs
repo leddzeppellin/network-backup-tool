@@ -170,14 +170,7 @@ public partial class ServerView
             return;
         }
         _draft.Root = path;
-        var r = await AgentClient.SendAsync(new AgentRequest("dirs", 0, path), 5000);
-        if (r.Ok && r.Data != null)
-        {
-            foreach (var name in System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.Data) ?? new())
-                if (!name.Equals(ShareConfig.InfoDir, StringComparison.OrdinalIgnoreCase) &&
-                    !_draft.Folders.Any(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                    _draft.Folders.Add(new ShareFolder { Name = name });
-        }
+        await ImportDirs(path);
         // Pasta que ainda não existe: é criada no Aplicar.
         Changed();
     }

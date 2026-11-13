@@ -86,6 +86,8 @@ public partial class ServerView : UserControl
         // Não descarta o que está sendo editado ao voltar para a tela.
         if (!Dirty) _draft = cfg.Clone();
         _saved = cfg;
+        // Pasta criada no Explorer depois de aplicar: aparece na lista para receber as permissões.
+        if (_draft.Root.Length > 0) await ImportDirs(_draft.Root);
         RenderAll();
         await RefreshOverview();
     }
@@ -166,19 +168,33 @@ public partial class ServerView : UserControl
         var picked = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = L.T("srv.root") });
         if (picked.Count == 0 || Platform.LocalPath(picked[0]) is not { } path) return;
         _draft.Root = path;
-        // Pastas que já existem dentro da raiz entram na lista (sem permissões até você marcar).
-        try
-        {
-            foreach (var d in Directory.EnumerateDirectories(path))
-            {
-                var name = Path.GetFileName(d);
-                if (name.Equals(ShareConfig.InfoDir, StringComparison.OrdinalIgnoreCase)) continue;
-                if (!_draft.Folders.Any(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                    _draft.Folders.Add(new ShareFolder { Name = name });
-            }
-        }
-        catch { /* sem acesso para listar: segue com a lista atual */ }
+        await ImportDirs(path);
         Changed();
+    }
+
+    /// <summary>
+    /// Pastas que existem no disco dentro da pasta da empresa e ainda não estão na lista (criadas no
+    /// Explorer, ou que já existiam): entram sem permissões, até você marcar e aplicar.
+    /// Quem lista é o serviço: depois de aplicado, só o sistema e os administradores elevados leem a raiz.
+    /// </summary>
+    private async Task<bool> ImportDirs(string root)
+    {
+        List<string>? names = null;
+        var r = await AgentClient.SendAsync(new AgentRequest("dirs", 0, root), 5000);
+        if (r.Ok && r.Data != null)
+            names = System.Text.Json.JsonSerializer.Deserialize<List<string>>(r.Data);
+        else if (!IsRemote)
+            try { names = Directory.EnumerateDirectories(root).Select(d => Path.GetFileName(d)).ToList(); }
+            catch { /* sem acesso para listar: segue com a lista atual */ }
+        bool added = false;
+        foreach (var name in names ?? new())
+        {
+            if (name.Equals(ShareConfig.InfoDir, StringComparison.OrdinalIgnoreCase) ||
+                _draft.Folders.Any(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) continue;
+            _draft.Folders.Add(new ShareFolder { Name = name });
+            added = true;
+        }
+        return added;
     }
 
     // ---------------------------------------------------------------- pastas
