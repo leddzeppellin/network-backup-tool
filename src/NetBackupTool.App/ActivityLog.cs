@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Eventing.Reader;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.Json;
 using NetBackupTool.Agent;
 
@@ -17,12 +19,13 @@ public sealed class ActivityLog : IDisposable
     private const int KeepMonths = 12;
     private static readonly TimeSpan Settle = TimeSpan.FromSeconds(3);   // espera a auditoria chegar
     private static readonly TimeSpan Match = TimeSpan.FromSeconds(60);   // janela para achar quem fez
+    private static readonly TimeSpan Slack = TimeSpan.FromSeconds(1);    // relógio da auditoria x aviso da pasta
     private static readonly TimeSpan Repeat = TimeSpan.FromMinutes(2);   // "alterou" repetido vira uma linha
 
     private readonly string _root;
     private readonly FileSystemWatcher _watcher;
     private readonly ConcurrentQueue<Change> _changes = new();
-    private readonly Dictionary<string, (string User, DateTime Time)> _who = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<(string User, DateTime Time)>> _who = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (string User, DateTime Time)> _lastChanged = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _timer;
     private readonly Action<string> _log;
@@ -30,7 +33,7 @@ public sealed class ActivityLog : IDisposable
     private int _busy;
     private bool _auditWarned;
 
-    private sealed record Change(DateTime Time, WatcherChangeTypes Kind, string Path, string? OldPath);
+    private sealed record Change(DateTime Time, WatcherChangeTypes Kind, string Path, string? OldPath, string? Owner = null);
 
     public static string Dir => Path.Combine(AgentConfig.Dir, "atividade");
 
@@ -65,7 +68,9 @@ public sealed class ActivityLog : IDisposable
     {
         var rel = Relative(path);
         if (rel == null || rel.Length == 0) return;
-        _changes.Enqueue(new Change(DateTime.Now, kind, path, old));
+        // O dono é lido já: segundos depois o arquivo pode ter sido renomeado ou apagado.
+        var owner = kind == WatcherChangeTypes.Created ? Owner(path) : null;
+        _changes.Enqueue(new Change(DateTime.Now, kind, path, old, owner));
     }
 
     /// <summary>Caminho relativo à pasta da empresa, ou null se estiver fora ou na pasta interna .nbt.</summary>
@@ -129,9 +134,12 @@ public sealed class ActivityLog : IDisposable
                 return Repeated(rel, "changed", c) ? null : Entry(c, "changed", rel);
             case WatcherChangeTypes.Created:
                 if (IsTemp(c.Path)) return null;
+                // A auditoria do Windows não anota a criação de arquivo novo; o dono do arquivo é
+                // quem o criou pela rede.
+                var creator = c.Owner ?? Who(c);
                 // Copiar um arquivo gera "criou" e logo "alterou": fica só o "criou".
-                _lastChanged[rel] = (Who(c), c.Time);
-                return Entry(c, "created", rel);
+                _lastChanged[rel] = (creator, c.Time);
+                return new ActivityEntry(c.Time, creator, "created", rel);
             case WatcherChangeTypes.Deleted:
                 if (IsTemp(c.Path)) return null;
                 return Entry(c, "deleted", rel);
@@ -145,6 +153,24 @@ public sealed class ActivityLog : IDisposable
         return null;
     }
 
+    /// <summary>Login do dono do arquivo, ou null se for uma conta do sistema ou o grupo Administradores.</summary>
+    private static string? Owner(string path)
+    {
+        try
+        {
+            var sec = isDirectory(path) ? (FileSystemSecurity)new DirectoryInfo(path).GetAccessControl(AccessControlSections.Owner)
+                                        : new FileInfo(path).GetAccessControl(AccessControlSections.Owner);
+            if (sec.GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier sid) return null;
+            if (sid.IsWellKnown(WellKnownSidType.LocalSystemSid) || sid.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid) ||
+                sid.IsWellKnown(WellKnownSidType.LocalServiceSid) || sid.IsWellKnown(WellKnownSidType.NetworkServiceSid)) return null;
+            var name = sid.Translate(typeof(NTAccount)).Value;
+            return name[(name.LastIndexOf('\\') + 1)..];
+        }
+        catch { return null; }
+
+        static bool isDirectory(string p) => Directory.Exists(p);
+    }
+
     private ActivityEntry Entry(Change c, string action, string rel, string? oldRel = null) =>
         new(c.Time, Who(c), action, rel, oldRel);
 
@@ -152,24 +178,33 @@ public sealed class ActivityLog : IDisposable
     private bool Repeated(string rel, string action, Change c)
     {
         var who = Who(c);
-        if (_lastChanged.TryGetValue(rel, out var last) && last.User == who && c.Time - last.Time < Repeat) return true;
+        // Sem saber quem (gravação sem auditoria própria): é a continuação da última ação no arquivo.
+        if (_lastChanged.TryGetValue(rel, out var last) && (last.User == who || who.Length == 0) && c.Time - last.Time < Repeat) return true;
         _lastChanged[rel] = (who, c.Time);
         return false;
     }
 
-    /// <summary>Quem fez: auditoria do próprio arquivo, do nome antigo ou da pasta onde ele está.</summary>
+    /// <summary>
+    /// Quem fez: auditoria do próprio arquivo, do nome antigo ou da pasta onde ele está. O acesso que
+    /// conta é o mais recente até o momento da mudança; um acesso depois dela já é de outra ação
+    /// (Bruno cria, Carla renomeia logo em seguida: o "criou" continua sendo do Bruno).
+    /// </summary>
     private string Who(Change c)
     {
         foreach (var p in new[] { c.Path, c.OldPath, Path.GetDirectoryName(c.Path) })
         {
-            if (p != null && _who.TryGetValue(p, out var w) && (c.Time - w.Time).Duration() < Match) return w.User;
+            if (p == null || !_who.TryGetValue(p, out var list)) continue;
+            // Arquivo novo não tem auditoria própria antes de existir: quem criou aparece na pasta.
+            var before = list.Where(w => w.Time <= c.Time + Slack && c.Time - w.Time < Match).ToList();
+            if (before.Count > 0) return before.MaxBy(w => w.Time).User;
         }
         return "";
     }
 
     private void Forget(DateTime now)
     {
-        foreach (var k in _who.Where(kv => now - kv.Value.Time > Match + Match).Select(kv => kv.Key).ToList()) _who.Remove(k);
+        foreach (var list in _who.Values) list.RemoveAll(w => now - w.Time > Match + Match);
+        foreach (var k in _who.Where(kv => kv.Value.Count == 0).Select(kv => kv.Key).ToList()) _who.Remove(k);
         foreach (var k in _lastChanged.Where(kv => now - kv.Value.Time > Repeat).Select(kv => kv.Key).ToList()) _lastChanged.Remove(k);
     }
 
@@ -203,7 +238,12 @@ public sealed class ActivityLog : IDisposable
                 // Contas do sistema (o próprio serviço, antivírus, indexador) não são pessoas.
                 if (user.EndsWith('$') || sid is "S-1-5-18" or "S-1-5-19" or "S-1-5-20") continue;
                 if (!obj.StartsWith(_root, StringComparison.OrdinalIgnoreCase)) continue;
-                _who[obj.TrimEnd('\\')] = (user, e.TimeCreated ?? DateTime.Now);
+                var key = obj.TrimEnd('\\');
+                if (!_who.TryGetValue(key, out var list)) _who[key] = list = new();
+                var w = (user, e.TimeCreated ?? DateTime.Now);
+                // Muitos acessos seguidos da mesma pessoa: basta o último.
+                if (list.Count > 0 && list[^1].User == user && (w.Item2 - list[^1].Time).Duration() < TimeSpan.FromSeconds(1)) list[^1] = w;
+                else list.Add(w);
             }
         }
     }
