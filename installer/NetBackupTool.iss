@@ -1,5 +1,5 @@
 ﻿; Instalador do Network Backup Tool (versão instalável).
-; Compilar: ISCC /DAppVersion=2.4.0 /DSourceExe=..\publish\NetBackupTool.exe installer\NetBackupTool.iss
+; Compilar: ISCC /DAppVersion=2.5.0 /DSourceExe=..\publish\NetBackupTool.exe installer\NetBackupTool.iss
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"

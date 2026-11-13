@@ -1,7 +1,7 @@
 <Project>
   <!-- Versão única para todos os projetos (o CI sobrescreve com a tag: -p:Version=x.y.z). -->
   <PropertyGroup>
-    <Version>2.4.0</Version>
+    <Version>2.5.0</Version>
     <Product>Network Backup Tool</Product>
   </PropertyGroup>
 </Project>
