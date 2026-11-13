@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Nbt.Core;
 
 namespace NetBackupTool;
@@ -91,6 +93,17 @@ public partial class MainView : UserControl
         OverlayYes.Click += (_, _) => CloseOverlay(true);
         OverlayNo.Click += (_, _) => CloseOverlay(false);
         SizeChanged += (_, e) => SetCompact(e.NewSize.Width < CompactWidth);
+        Loaded += (_, _) =>
+        {
+            // Celular: o teclado na tela cobre a parte de baixo. A tela encolhe para caber acima dele
+            // e o campo em que a pessoa está digitando rola até ficar visível.
+            var pane = TopLevel.GetTopLevel(this)?.InputPane;
+            if (pane != null) pane.StateChanged += (_, e) => FitAboveKeyboard(e.EndRect, e.NewState == Avalonia.Controls.Platform.InputPaneState.Open);
+        };
+        GotFocus += (_, e) =>
+        {
+            if (_keyboardOpen && e.Source is Control c) Dispatcher.UIThread.Post(() => c.BringIntoView(), DispatcherPriority.Background);
+        };
         Focusable = true;
         Loaded += (_, _) => Focus();
     }
@@ -114,11 +127,33 @@ public partial class MainView : UserControl
     public void ShowReceivePage() => Navigate(ReceivePage);
 
     /// <summary>Celular (tela estreita): abas embaixo e margens menores.</summary>
+    private bool _keyboardOpen;
+    private bool _compact;
+
+    private void FitAboveKeyboard(Rect keyboard, bool open)
+    {
+        var top = TopLevel.GetTopLevel(this);
+        // Quanto do app o teclado cobre (zero se o sistema já encolheu a janela).
+        double covered = 0;
+        if (open && top != null && keyboard.Height > 0)
+        {
+            var bottom = this.TranslatePoint(new Point(0, Bounds.Height), top)?.Y ?? top.Bounds.Height;
+            covered = Math.Max(0, bottom - keyboard.Top);
+        }
+        _keyboardOpen = open;
+        Padding = new Thickness(0, 0, 0, covered);
+        // Com o teclado aberto as abas de baixo só tomam espaço.
+        BottomBar.IsVisible = _compact && !open;
+        if (open && top?.FocusManager?.GetFocusedElement() is Control focused)
+            Dispatcher.UIThread.Post(() => focused.BringIntoView(), DispatcherPriority.Background);
+    }
+
     private void SetCompact(bool compact)
     {
         Classes.Set("compact", compact);
         Sidebar.IsVisible = !compact;
-        BottomBar.IsVisible = compact;
+        _compact = compact;
+        BottomBar.IsVisible = compact && !_keyboardOpen;
         Root.ColumnDefinitions[0].Width = compact ? new GridLength(0) : new GridLength(210);
     }
 

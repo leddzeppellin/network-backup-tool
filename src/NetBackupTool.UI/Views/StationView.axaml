@@ -6,7 +6,7 @@
     <StackPanel Classes="page" Spacing="16" MaxWidth="820">
       <StackPanel Spacing="2">
         <TextBlock Classes="h1" Text="{l:T nav.company}" />
-        <TextBlock Classes="muted" Text="{l:T sta.subtitle}" TextWrapping="Wrap" />
+        <TextBlock x:Name="SubtitleText" Classes="muted" Text="{l:T sta.subtitle}" TextWrapping="Wrap" />
       </StackPanel>
 
       <TextBlock x:Name="ElevatedText" Classes="muted" Foreground="IndianRed" Text="{l:T sta.elevated}" TextWrapping="Wrap" IsVisible="False" />
@@ -26,15 +26,23 @@
             <WrapPanel x:Name="ServerChips" />
           </StackPanel>
 
-          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
-            <TextBlock Text="{l:T sta.server}" VerticalAlignment="Center" />
-            <TextBox x:Name="ServerBox" Grid.Column="1" Width="260" HorizontalAlignment="Left" Watermark="{l:T sta.serverHint}" />
-            <TextBlock Grid.Row="1" Text="{l:T srv.shareName}" VerticalAlignment="Center" />
-            <TextBox x:Name="ShareBox" Grid.Row="1" Grid.Column="1" Width="260" HorizontalAlignment="Left" Text="Empresa" />
-            <TextBlock Grid.Row="2" Text="{l:T srv.login}" VerticalAlignment="Center" />
-            <TextBox x:Name="LoginBox" Grid.Row="2" Grid.Column="1" Width="260" HorizontalAlignment="Left" />
-            <TextBlock x:Name="PasswordLabel" Grid.Row="3" Text="{l:T srv.password}" VerticalAlignment="Center" />
-            <TextBox x:Name="PasswordBox" Grid.Row="3" Grid.Column="1" Width="260" HorizontalAlignment="Left" PasswordChar="●" />
+          <!-- Rótulo em cima do campo: cabe igual no celular e no computador -->
+          <!-- Coluna com no máximo 380: no celular ocupa a largura toda, no computador não estica demais -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1000*" MaxWidth="380" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{l:T sta.server}" />
+            <TextBox x:Name="ServerBox" Watermark="{l:T sta.serverHint}" Margin="0,0,0,8" />
+            <TextBlock Text="{l:T srv.shareName}" />
+            <TextBox x:Name="ShareBox" Text="Empresa" Margin="0,0,0,8" />
+            <TextBlock Text="{l:T srv.login}" />
+            <TextBox x:Name="LoginBox" Margin="0,0,0,8" />
+            <TextBlock x:Name="PasswordLabel" Text="{l:T srv.password}" />
+            <TextBox x:Name="PasswordBox" PasswordChar="●" />
+          </StackPanel>
           </Grid>
 
           <StackPanel Orientation="Horizontal" Spacing="12">

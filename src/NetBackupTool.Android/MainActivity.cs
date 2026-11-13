@@ -17,7 +17,6 @@ using AndroidUri = Android.Net.Uri;
 namespace NetBackupTool.Droid;
 
 [Activity(
-    Label = "Network Backup Tool",
     Theme = "@style/NbtTheme",
     Icon = "@mipmap/icon",
     MainLauncher = true,
@@ -154,7 +153,7 @@ public class MainActivity : AvaloniaMainActivity<App>, IAppHost
         try
         {
             var file = new Java.IO.File(path);
-            var uri = AndroidX.Core.Content.FileProvider.GetUriForFile(this, "io.github.leddzeppellin.netbackuptool.files", file);
+            var uri = AndroidX.Core.Content.FileProvider.GetUriForFile(this, PackageName + ".files", file);
             var ext = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
             var mime = Android.Webkit.MimeTypeMap.Singleton?.GetMimeTypeFromExtension(ext) ?? "*/*";
             var intent = new Intent(Intent.ActionView);

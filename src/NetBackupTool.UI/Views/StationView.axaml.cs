@@ -31,6 +31,7 @@ public partial class StationView : UserControl
         if (Platform.IsAndroid)
         {
             ConnectText.Text = L.T("sta.connectTextAndroid");
+            SubtitleText.Text = L.T("sta.subtitleAndroid");
             SetupBrowser();
         }
         else if (!Platform.IsWindows)

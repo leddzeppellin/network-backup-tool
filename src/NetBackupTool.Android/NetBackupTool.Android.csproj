@@ -15,6 +15,7 @@
     <!-- versionCode inteiro e crescente: 2.2.0 → 20200 (mínimo 1: o Android recusa 0) -->
     <ApplicationVersion>$([System.Math]::Max(1, $([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Major), 10000)), $([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse('$(Version)').Minor), 100)), $([System.Version]::Parse('$(Version)').Build)))))))</ApplicationVersion>
     <AndroidPackageFormat Condition="'$(AndroidPackageFormat)' == ''">apk</AndroidPackageFormat>
+    <AndroidManifestPlaceholders>applicationId=$(ApplicationId)</AndroidManifestPlaceholders>
   </PropertyGroup>
 
   <!-- O pacote .aab é o da Play Store: lá as atualizações vêm só pela loja. -->
