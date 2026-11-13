@@ -46,6 +46,7 @@
           <ToggleButton x:Name="TabOverview" Classes="chip" Content="{l:T srv.tabOverview}" />
           <ToggleButton x:Name="TabFolders" Classes="chip" Content="{l:T srv.tabFolders}" />
           <ToggleButton x:Name="TabPeople" Classes="chip" Content="{l:T srv.tabPeople}" />
+          <ToggleButton x:Name="TabActivity" Classes="chip" Content="{l:T act.tab}" />
         </StackPanel>
 
         <!-- Visão geral -->
@@ -92,6 +93,32 @@
             <StackPanel x:Name="FolderDetail" Spacing="10" />
           </Border>
         </Grid>
+
+        <!-- Atividade: quem criou, alterou ou apagou o quê -->
+        <StackPanel x:Name="ActivityPanel" Spacing="12" IsVisible="False">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <CheckBox x:Name="ActivityOn" Content="{l:T act.enable}" />
+              <TextBlock Classes="caption" Text="{l:T act.enableNote}" TextWrapping="Wrap" />
+              <WrapPanel>
+                <ComboBox x:Name="ActivityPeriod" Width="150" Margin="0,0,8,8" SelectedIndex="0">
+                  <ComboBoxItem Content="{l:T act.days7}" />
+                  <ComboBoxItem Content="{l:T act.days30}" />
+                  <ComboBoxItem Content="{l:T act.days365}" />
+                </ComboBox>
+                <TextBox x:Name="ActivitySearch" Watermark="{l:T act.search}" Width="280" Margin="0,0,8,8" />
+                <Button x:Name="ActivityRefresh" Content="{l:T act.refresh}" Margin="0,0,8,8" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <Border Classes="card">
+            <StackPanel Spacing="6">
+              <TextBlock x:Name="ActivityEmpty" Classes="muted" Text="{l:T act.empty}" TextWrapping="Wrap" />
+              <StackPanel x:Name="ActivityList" Spacing="2" />
+              <TextBlock x:Name="ActivityMore" Classes="caption" IsVisible="False" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
 
         <!-- Pessoas e grupos -->
         <StackPanel x:Name="PeoplePanel" Spacing="12" IsVisible="False">

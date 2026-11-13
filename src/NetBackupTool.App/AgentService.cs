@@ -24,6 +24,7 @@ public sealed class AgentCore : IDisposable
     private Receiver? _receiver;
     private AgentConfig _config = new();
     private CancellationTokenSource? _cts;
+    private ActivityLog? _activity;
 
     public void Start()
     {
@@ -36,11 +37,24 @@ public sealed class AgentCore : IDisposable
         _cts = new CancellationTokenSource();
         _ = Task.Run(() => PipeLoop(_cts.Token));
         if (_config.Enabled) StartReceiver();
+        RestartActivity();
+    }
+
+    /// <summary>Registro de atividade ligado se a pasta da empresa existe e a opção está marcada.</summary>
+    private void RestartActivity()
+    {
+        _activity?.Dispose();
+        _activity = null;
+        var cfg = ShareConfig.Load();
+        if (cfg.Root.Length == 0 || !cfg.Activity || !Directory.Exists(cfg.Root)) return;
+        try { _activity = new ActivityLog(cfg.Root, m => Add("log", m)); }
+        catch (Exception ex) { Add("log", L.T("act.startFailed", ex.Message)); }
     }
 
     public void Dispose()
     {
         _cts?.Cancel();
+        _activity?.Dispose();
         _receiver?.Stop();
         _receiver = null;
     }
@@ -118,6 +132,7 @@ public sealed class AgentCore : IDisposable
                 Add("log", L.T("srv.applying"));
                 error = ShareApplier.Apply(apply);
                 if (_receiver != null) _receiver.Share = SharedName();
+                RestartActivity();
                 Add("log", error == null ? L.T("srv.applied") : L.T("srv.applyFailed", error));
                 return new AgentResponse(error == null, error, Data: ShareConfig.Load().ToJson());
             case "start":
@@ -215,7 +230,9 @@ public sealed class AgentCore : IDisposable
                 try
                 {
                     if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failure); // mantém onde aconteceu
-                    if (req.Cmd == "shares-overview")
+                    if (req.Cmd == "activity")
+                        resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ActivityLog.Read(int.TryParse(req.Arg, out var d) ? d : 7)));
+                    else if (req.Cmd == "shares-overview")
                         resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
                     else
                         lock (this) resp = Handle(req, isAdmin);

@@ -89,6 +89,9 @@ public static class ShareApplier
                 SetFolderAcl(path, f, cfg);
             });
 
+        // Registro de atividade: auditoria do Windows só na pasta da empresa.
+        Try(errors, "auditoria", () => SetAuditing(cfg));
+
         // Atalhos de cada pessoa, lidos pelas estações.
         Try(errors, ShareConfig.InfoDir, () => WriteStationInfo(cfg));
 
@@ -194,6 +197,36 @@ public static class ShareApplier
             }
         }
         new DirectoryInfo(path).SetAccessControl(sec);
+    }
+
+    /// <summary>
+    /// Liga a categoria "Sistema de Arquivos" da auditoria (pelo GUID: funciona em qualquer idioma do Windows)
+    /// e põe na raiz uma regra de auditoria só para gravar, apagar e criar. Leituras não entram: seriam
+    /// milhares de linhas sem utilidade.
+    /// </summary>
+    private static void SetAuditing(ShareConfig cfg)
+    {
+        const InheritanceFlags all = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+        var rule = new FileSystemAuditRule(EveryoneSid,
+            FileSystemRights.WriteData | FileSystemRights.AppendData | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles,
+            all, PropagationFlags.None, AuditFlags.Success);
+        var sec = new DirectorySecurity();
+        sec.AddAuditRule(rule);
+        if (cfg.Activity)
+        {
+            var psi = new ProcessStartInfo("auditpol.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var a in new[] { "/set", "/subcategory:{0CCE921D-69AE-11D9-BED3-505054503030}", "/success:enable" }) psi.ArgumentList.Add(a);
+            using var p = Process.Start(psi)!;
+            var err = p.StandardError.ReadToEnd() + p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+            if (p.ExitCode != 0) throw new InvalidOperationException(err.Trim());
+        }
+        else
+        {
+            // Lista de auditoria vazia (a regra entra e sai só para marcar a lista como alterada).
+            sec.RemoveAuditRuleSpecific(rule);
+        }
+        new DirectoryInfo(cfg.Root).SetAccessControl(sec);
     }
 
     /// <summary>

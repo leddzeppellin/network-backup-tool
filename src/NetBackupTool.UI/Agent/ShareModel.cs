@@ -69,6 +69,8 @@ public sealed class ShareConfig
     public List<ShareGroup> Groups { get; set; } = new();
     public List<ShareUser> Users { get; set; } = new();
     public List<ShareFolder> Folders { get; set; } = new();
+    /// <summary>Registrar quem criou, alterou ou apagou cada arquivo (auditoria do Windows na pasta da empresa).</summary>
+    public bool Activity { get; set; } = true;
 
     public const string GroupPrefix = "NBT-";
     public const string AllGroup = "NBT-Todos";
@@ -133,6 +135,9 @@ public sealed class StationInfo
     /// <summary>Pastas para fixar no Acesso rápido dessa pessoa.</summary>
     public List<string> Pins { get; set; } = new();
 }
+
+/// <summary>Uma linha do registro de atividade. Action: created, changed, deleted, renamed.</summary>
+public sealed record ActivityEntry(DateTime Time, string User, string Action, string Path, string? OldPath = null);
 
 public sealed record OpenFile(string User, string Path);
 

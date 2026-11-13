@@ -33,6 +33,16 @@ public partial class ServerView : UserControl
         TabOverview.Click += (_, _) => ShowTab(0);
         TabFolders.Click += (_, _) => ShowTab(1);
         TabPeople.Click += (_, _) => ShowTab(2);
+        TabActivity.Click += async (_, _) => { ShowTab(3); await LoadActivity(); };
+        ActivityRefresh.Click += async (_, _) => await LoadActivity();
+        ActivityPeriod.SelectionChanged += async (_, _) => { if (ActivityPanel.IsVisible) await LoadActivity(); };
+        ActivitySearch.TextChanged += (_, _) => RenderActivity();
+        ActivityOn.IsCheckedChanged += (_, _) =>
+        {
+            if (ActivityOn.IsChecked == _draft.Activity) return;
+            _draft.Activity = ActivityOn.IsChecked == true;
+            Changed(false);
+        };
         ShowTab(0);
 
         ChooseRootButton.Click += async (_, _) => await ChooseRoot();
@@ -82,9 +92,11 @@ public partial class ServerView : UserControl
         TabOverview.IsChecked = i == 0;
         TabFolders.IsChecked = i == 1;
         TabPeople.IsChecked = i == 2;
+        TabActivity.IsChecked = i == 3;
         OverviewPanel.IsVisible = i == 0;
         FoldersPanel.IsVisible = i == 1;
         PeoplePanel.IsVisible = i == 2;
+        ActivityPanel.IsVisible = i == 3;
     }
 
     /// <summary>Marca o rascunho como alterado; rerender redesenha as listas.</summary>
@@ -102,6 +114,7 @@ public partial class ServerView : UserControl
         if (ShareNameBox.Text != _draft.ShareName) ShareNameBox.Text = _draft.ShareName;
         AddressText.Text = $@"\\{Platform.DeviceName}\{_draft.ShareName}";
         PeopleCountText.Text = _saved.Users.Count.ToString();
+        ActivityOn.IsChecked = _draft.Activity;
         RenderFolders();
         RenderPeople();
         ApplyBar.IsVisible = Dirty;

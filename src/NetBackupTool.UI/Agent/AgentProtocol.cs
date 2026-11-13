@@ -56,7 +56,7 @@ public static class AgentClient
     public static readonly string[] AdminCommands = ["start", "stop", "newcode", "dest", "restart", "shares-apply"];
 
     /// <summary>Comandos que só leem: qualquer usuário do PC pode pedir.</summary>
-    public static readonly string[] ReadCommands = ["status", "shares-get", "shares-overview"];
+    public static readonly string[] ReadCommands = ["status", "shares-get", "shares-overview", "activity"];
 
     /// <summary>Lê dados do serviço (JSON em Data).</summary>
     public static async Task<T?> GetAsync<T>(string cmd) where T : class
