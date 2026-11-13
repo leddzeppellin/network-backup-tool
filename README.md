@@ -178,3 +178,8 @@ com certificado fornecido pela [SignPath.io](https://about.signpath.io).
 ## Licença
 
 [MIT](LICENSE)
+
+Bibliotecas de terceiros: [Avalonia](https://avaloniaui.net) (MIT), [SkiaSharp](https://github.com/mono/SkiaSharp) (MIT)
+e, para o acesso às pastas da empresa pelo Android, [SMBLibrary](https://github.com/TalAloni/SMBLibrary)
+(LGPL-3.0, usada sem modificação como biblioteca separada; o código-fonte dela está no link).
+
