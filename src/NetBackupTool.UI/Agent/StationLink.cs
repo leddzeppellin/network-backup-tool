@@ -19,6 +19,7 @@ public sealed class StationConfig
     /// <summary>Atalhos que este programa fixou (só esses ele tira depois).</summary>
     public List<string> Pinned { get; set; } = new();
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public string Unc => $@"\\{Server}\{Share}";
 
     private static string FilePath => Path.Combine(Settings.Dir, "estacao.json");
@@ -107,6 +108,7 @@ public static class StationLink
         WNetCancelConnection2(c.Drive, CONNECT_UPDATE_PROFILE, true);
         WNetCancelConnection2(c.Unc, CONNECT_UPDATE_PROFILE, true);
         DeleteCredential(c.Server);
+        RemoveLabel(c.Server, c.Share);
         StationConfig.Delete();
     }
 
@@ -196,10 +198,18 @@ public static class StationLink
     {
         try
         {
-            using var k = Registry.CurrentUser.CreateSubKey($@"Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##{server}#{share}");
+            using var k = Registry.CurrentUser.CreateSubKey(LabelKey(server, share));
             k.SetValue("_LabelFromReg", $"{share} ({server})");
         }
         catch { }
+    }
+
+    private static string LabelKey(string server, string share) =>
+        $@"Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##{server}#{share}";
+
+    private static void RemoveLabel(string server, string share)
+    {
+        try { Registry.CurrentUser.DeleteSubKeyTree(LabelKey(server, share), throwOnMissingSubKey: false); } catch { }
     }
 
     // ---------------------------------------------------------------- senha
