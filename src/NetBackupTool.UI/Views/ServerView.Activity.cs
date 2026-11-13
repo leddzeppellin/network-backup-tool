@@ -15,6 +15,7 @@ public partial class ServerView
 
     private async Task LoadActivity()
     {
+        if (!HasServer) return;
         var days = ActivityPeriod.SelectedIndex switch { 1 => 30, 2 => 365, _ => 7 };
         ActivityRefresh.IsEnabled = false;
         var r = await AgentClient.SendAsync(new AgentRequest("activity", 0, days.ToString()), 5000);
@@ -22,7 +23,7 @@ public partial class ServerView
         _activity = r.Ok && r.Data != null
             ? System.Text.Json.JsonSerializer.Deserialize<List<ActivityEntry>>(r.Data) ?? new()
             : new();
-        if (!r.Ok) ProblemText.Text = L.T("srv.noService");
+        if (!r.Ok) ProblemText.Text = IsRemote ? L.T("rem.lost", r.Error ?? "?") : L.T("srv.noService");
         ProblemText.IsVisible = !r.Ok;
         RenderActivity();
     }

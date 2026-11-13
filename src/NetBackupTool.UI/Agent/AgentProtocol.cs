@@ -52,6 +52,11 @@ public static class AgentClient
 {
     public const string PipeName = "NetBackupTool-Servico";
     public const string CmdArg = "--servico-cmd";
+    /// <summary>Porta da administração remota (outro PC administrando este servidor).</summary>
+    public const int RemotePort = 50507;
+
+    /// <summary>Servidor de outro PC que o painel está administrando; null = o serviço deste PC.</summary>
+    public static RemoteServer? Remote { get; set; }
 
     public static readonly string[] AdminCommands = ["start", "stop", "newcode", "dest", "restart", "shares-apply"];
 
@@ -67,6 +72,7 @@ public static class AgentClient
 
     public static async Task<AgentResponse> SendAsync(AgentRequest req, int timeoutMs = 1500)
     {
+        if (Remote is { } remote) return await remote.SendAsync(req, timeoutMs);
         try
         {
             // Identification: o serviço precisa ver quem pergunta para checar se é administrador.
@@ -95,7 +101,8 @@ public static class AgentClient
     /// </summary>
     public static async Task<string?> CommandAsync(string cmd, string? arg = null)
     {
-        if (IsElevated || !OperatingSystem.IsWindows())
+        // À distância a conta já foi conferida como administradora do servidor.
+        if (IsElevated || !OperatingSystem.IsWindows() || Remote != null)
         {
             var r = await SendAsync(new AgentRequest(cmd, 0, arg), 5000);
             return r.Ok ? null : r.Error ?? "?";

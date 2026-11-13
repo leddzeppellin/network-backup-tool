@@ -46,6 +46,8 @@ public partial class StationView : UserControl
 
         SearchButton.Click += async (_, _) => await Search();
         ConnectButton.Click += async (_, _) => await Connect();
+        AdminServerButton.IsVisible = main.CanAdministerServer;
+        AdminServerButton.Click += (_, _) => main.ShowServerPage();
         PasswordBox.KeyDown += async (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) await Connect(); };
         ServerBox.TextChanged += (_, _) => { if (_picked != null && ServerBox.Text != _picked.Name) _picked = null; };
         OpenButton.Click += (_, _) => { if (_config != null) Platform.OpenFolder(_config.Drive + "\\"); };

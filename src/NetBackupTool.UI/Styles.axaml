@@ -153,6 +153,17 @@
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="6" />
   </Style>
+  <!-- Ação discreta, com cara de link -->
+  <Style Selector="Button.link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0,4" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentText}" />
+  </Style>
+  <Style Selector="Button.link:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentText}" />
+  </Style>
 
   <!-- Receptores encontrados: "chips" selecionáveis -->
   <Style Selector="ToggleButton.chip">

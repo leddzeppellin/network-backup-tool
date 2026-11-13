@@ -45,13 +45,14 @@ public partial class ServerView : UserControl
         };
         ShowTab(0);
 
-        ChooseRootButton.Click += async (_, _) => await ChooseRoot();
+        ChooseRootButton.Click += async (_, _) => { if (IsRemote) await UseRemoteRoot(); else await ChooseRoot(); };
+        SetupRemote();
         ShareNameBox.TextChanged += (_, _) =>
         {
             if (ShareNameBox.Text != _draft.ShareName)
             {
                 _draft.ShareName = (ShareNameBox.Text ?? "").Trim();
-                AddressText.Text = $@"\\{Platform.DeviceName}\{_draft.ShareName}";
+                AddressText.Text = $@"\\{ServerName}\{_draft.ShareName}";
                 Changed(false);
             }
         };
@@ -76,9 +77,11 @@ public partial class ServerView : UserControl
 
     private async Task Reload()
     {
-        var cfg = await AgentClient.GetAsync<ShareConfig>("shares-get");
+        if (!HasServer) return;
+        var r = await AgentClient.SendAsync(new AgentRequest("shares-get"), 3000);
+        var cfg = r.Ok && r.Data != null ? System.Text.Json.JsonSerializer.Deserialize<ShareConfig>(r.Data) : null;
         ProblemText.IsVisible = cfg == null;
-        ProblemText.Text = L.T("srv.noService");
+        ProblemText.Text = IsRemote ? L.T("rem.lost", r.Error ?? "?") : L.T("srv.noService");
         if (cfg == null) return;
         // Não descarta o que está sendo editado ao voltar para a tela.
         if (!Dirty) _draft = cfg.Clone();
@@ -111,8 +114,9 @@ public partial class ServerView : UserControl
         bool configured = _saved.Root.Length > 0;
         SetupTitle.IsVisible = SetupText.IsVisible = !configured;
         RootText.Text = _draft.Root.Length > 0 ? _draft.Root : L.T("recv.noFolder");
+        if (!RootPathBox.IsFocused) RootPathBox.Text = _draft.Root;
         if (ShareNameBox.Text != _draft.ShareName) ShareNameBox.Text = _draft.ShareName;
-        AddressText.Text = $@"\\{Platform.DeviceName}\{_draft.ShareName}";
+        AddressText.Text = $@"\\{ServerName}\{_draft.ShareName}";
         PeopleCountText.Text = _saved.Users.Count.ToString();
         ActivityOn.IsChecked = _draft.Activity;
         RenderFolders();
@@ -124,7 +128,7 @@ public partial class ServerView : UserControl
 
     private async Task RefreshOverview()
     {
-        if (!OverviewPanel.IsVisible && SessionsText.Text != "—") return;
+        if (!HasServer || (!OverviewPanel.IsVisible && SessionsText.Text != "—")) return;
         var o = await AgentClient.GetAsync<ShareOverview>("shares-overview");
         if (o == null) return;
         SessionsText.Text = o.Sessions.ToString();
@@ -168,6 +172,7 @@ public partial class ServerView : UserControl
             foreach (var d in Directory.EnumerateDirectories(path))
             {
                 var name = Path.GetFileName(d);
+                if (name.Equals(ShareConfig.InfoDir, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!_draft.Folders.Any(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     _draft.Folders.Add(new ShareFolder { Name = name });
             }

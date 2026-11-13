@@ -65,6 +65,12 @@ public partial class MainView : UserControl
         }
         else if (host != null)
         {
+            // Técnico num PC da equipe: administra o servidor pela rede (aparece no menu depois de usar).
+            if (host.IsDesktop && OperatingSystem.IsWindows())
+            {
+                _serverPage = new ServerView(this);
+                NavServer.Click += (_, _) => Navigate(_serverPage);
+            }
             // Computador da equipe ou celular: liga às pastas da empresa no servidor.
             _stationPage = new StationView(this);
             NavCompany.IsVisible = TabCompany.IsVisible = true;
@@ -125,6 +131,16 @@ public partial class MainView : UserControl
     }
 
     public void ShowReceivePage() => Navigate(ReceivePage);
+
+    /// <summary>Página do servidor (num PC da equipe: administração de outro servidor pela rede).</summary>
+    public bool CanAdministerServer => _serverPage != null;
+
+    public void ShowServerPage()
+    {
+        if (_serverPage == null) return;
+        NavServer.IsVisible = true;
+        Navigate(_serverPage);
+    }
 
     /// <summary>Celular (tela estreita): abas embaixo e margens menores.</summary>
     private bool _keyboardOpen;

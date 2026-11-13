@@ -22,8 +22,57 @@
           <TextBlock Classes="muted" Text="{l:T srv.subtitle}" />
         </StackPanel>
 
+        <!-- Qual servidor o painel está administrando -->
+        <DockPanel x:Name="RemoteBar">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="OtherServerButton" Classes="link" Content="{l:T rem.other}" />
+            <Button x:Name="RemoteDisconnectButton" Content="{l:T rem.disconnect}" IsVisible="False" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Ellipse x:Name="RemoteDot" Classes="dot on" Width="10" Height="10" VerticalAlignment="Center" />
+            <TextBlock x:Name="RemoteText" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+
+        <!-- Conectar a um servidor de outro PC -->
+        <Border x:Name="RemoteCard" Classes="card" IsVisible="False">
+          <StackPanel Spacing="12">
+            <TextBlock Classes="h2" Text="{l:T rem.title}" />
+            <TextBlock Classes="muted" Text="{l:T rem.text}" TextWrapping="Wrap" />
+            <StackPanel Spacing="6">
+              <DockPanel>
+                <Button x:Name="RemoteSearchButton" DockPanel.Dock="Right" Content="{l:T sta.searchAgain}" Padding="10,4" FontSize="12" />
+                <TextBlock Classes="caption" Text="{l:T sta.found}" VerticalAlignment="Center" />
+              </DockPanel>
+              <TextBlock x:Name="RemoteSearchingText" Classes="muted" Text="{l:T sta.searching}" />
+              <WrapPanel x:Name="RemoteChips" />
+            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1000*" MaxWidth="380" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Spacing="4">
+                <TextBlock Text="{l:T sta.server}" />
+                <TextBox x:Name="RemoteHostBox" Watermark="{l:T sta.serverHint}" Margin="0,0,0,8" />
+                <TextBlock Text="{l:T rem.user}" />
+                <TextBox x:Name="RemoteUserBox" Watermark="{l:T rem.userHint}" />
+                <TextBlock Classes="caption" Text="{l:T rem.userNote}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="{l:T srv.password}" />
+                <TextBox x:Name="RemotePasswordBox" PasswordChar="●" Classes="revealPasswordButton" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Button x:Name="RemoteConnectButton" Classes="accent" Content="{l:T sta.connect}" MinWidth="120" HorizontalContentAlignment="Center" />
+              <Button x:Name="RemoteCancelButton" Content="{l:T rem.backLocal}" />
+              <TextBlock x:Name="RemoteStatus" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="480" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
         <TextBlock x:Name="ProblemText" Classes="muted" Foreground="IndianRed" IsVisible="False" />
 
+        <StackPanel x:Name="ServerContent" Spacing="16">
         <!-- Pasta da empresa e endereço -->
         <Border Classes="card">
           <StackPanel Spacing="10">
@@ -32,6 +81,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
               <TextBlock Text="{l:T srv.root}" VerticalAlignment="Center" />
               <TextBlock x:Name="RootText" Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" />
+              <TextBox x:Name="RootPathBox" Grid.Column="1" Watermark="{l:T rem.rootHint}" IsVisible="False" />
               <Button x:Name="ChooseRootButton" Grid.Column="2" Content="{l:T srv.chooseRoot}" />
               <TextBlock Grid.Row="1" Text="{l:T srv.shareName}" VerticalAlignment="Center" />
               <TextBox x:Name="ShareNameBox" Grid.Row="1" Grid.Column="1" MaxWidth="260" HorizontalAlignment="Left" Width="260" />
@@ -146,6 +196,7 @@
               </Border>
             </StackPanel>
           </Border>
+        </StackPanel>
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

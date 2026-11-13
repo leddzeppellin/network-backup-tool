@@ -25,6 +25,7 @@ public sealed class AgentCore : IDisposable
     private AgentConfig _config = new();
     private CancellationTokenSource? _cts;
     private ActivityLog? _activity;
+    private RemoteAdmin? _remote;
 
     public void Start()
     {
@@ -38,6 +39,8 @@ public sealed class AgentCore : IDisposable
         _ = Task.Run(() => PipeLoop(_cts.Token));
         if (_config.Enabled) StartReceiver();
         RestartActivity();
+        _remote = new RemoteAdmin(this);
+        _remote.Start();
     }
 
     /// <summary>Registro de atividade ligado se a pasta da empresa existe e a opção está marcada.</summary>
@@ -54,6 +57,7 @@ public sealed class AgentCore : IDisposable
     public void Dispose()
     {
         _cts?.Cancel();
+        _remote?.Dispose();
         _activity?.Dispose();
         _receiver?.Stop();
         _receiver = null;
@@ -226,30 +230,44 @@ public sealed class AgentCore : IDisposable
                     }
                     catch (Exception ex) { failure = ex; }
                 }
-                AgentResponse resp;
-                try
-                {
-                    if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failure); // mantém onde aconteceu
-                    if (req.Cmd == "activity")
-                        resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ActivityLog.Read(int.TryParse(req.Arg, out var d) ? d : 7)));
-                    else if (req.Cmd == "shares-overview")
-                        resp = new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
-                    else
-                        lock (this) resp = Handle(req, isAdmin);
-                }
-                catch (Exception ex)
-                {
-                    // Erro inesperado: volta para quem pediu (e fica no histórico), em vez de fechar a conexão calado.
-                    var where = ex.StackTrace?.Split('\n').FirstOrDefault()?.Trim();
-                    var msg = $"{ex.GetType().Name}: {ex.Message} ({where})";
-                    Add("log", msg);
-                    resp = new AgentResponse(false, msg);
-                }
+                var resp = failure != null ? Failed(failure) : Process(req, isAdmin);
                 await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
             }
             catch { /* cliente sumiu */ }
         }
     }
+
+    /// <summary>Atende um pedido (do pipe local ou da administração remota).</summary>
+    internal AgentResponse Process(AgentRequest req, bool isAdmin)
+    {
+        try
+        {
+            if (req.Cmd == "activity")
+                return new AgentResponse(true, Data: JsonSerializer.Serialize(ActivityLog.Read(int.TryParse(req.Arg, out var d) ? d : 7)));
+            if (req.Cmd == "shares-overview")
+                return new AgentResponse(true, Data: JsonSerializer.Serialize(ShareApplier.Overview())); // demora ~1 s: fora da trava
+            if (req.Cmd == "dirs")
+            {
+                // Pastas que já existem dentro de um caminho do servidor (escolha da pasta da empresa à distância).
+                if (!isAdmin) return new AgentResponse(false, L.T("svc.needAdmin"));
+                if (string.IsNullOrWhiteSpace(req.Arg) || !Directory.Exists(req.Arg)) return new AgentResponse(false, L.T("rem.noPath", req.Arg ?? ""));
+                return new AgentResponse(true, Data: JsonSerializer.Serialize(Directory.EnumerateDirectories(req.Arg).Select(Path.GetFileName).ToList()));
+            }
+            lock (this) return Handle(req, isAdmin);
+        }
+        catch (Exception ex) { return Failed(ex); }
+    }
+
+    /// <summary>Erro inesperado: volta para quem pediu (e fica no histórico), em vez de fechar a conexão calado.</summary>
+    private AgentResponse Failed(Exception ex)
+    {
+        var where = ex.StackTrace?.Split('\n').FirstOrDefault()?.Trim();
+        var msg = $"{ex.GetType().Name}: {ex.Message} ({where})";
+        Add("log", msg);
+        return new AgentResponse(false, msg);
+    }
+
+    internal void Log(string text) => Add("log", text);
 }
 
 [SupportedOSPlatform("windows")]

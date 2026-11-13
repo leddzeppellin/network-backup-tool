@@ -111,6 +111,9 @@
         </Border>
         <TextBlock Classes="caption" Text="{l:T sta.editNote}" TextWrapping="Wrap" />
       </StackPanel>
+
+      <!-- Técnico: administrar o servidor da empresa a partir deste PC -->
+      <Button x:Name="AdminServerButton" Classes="link" Content="{l:T rem.adminLink}" HorizontalAlignment="Left" IsVisible="False" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>
